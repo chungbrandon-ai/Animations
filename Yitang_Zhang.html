@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Source+Serif+Pro:ital,wght@0,400;0,700;1,400&display=swap');
+
+        body {
+            background-color: #1C1C1C;
+            color: #E0E0E0;
+            font-family: 'Source Serif Pro', serif;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .math-font {
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(transparent, rgba(28, 28, 28, 0.95) 40%);
+            padding: 4rem 2rem 2rem;
+            pointer-events: none;
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        .btn-3b1b {
+            background-color: transparent;
+            border: 2px solid #58C4DD;
+            color: #58C4DD;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-3b1b:hover {
+            background-color: #58C4DD;
+            color: #1C1C1C;
+            box-shadow: 0 0 15px rgba(88, 196, 221, 0.4);
+        }
+
+        .act-indicator {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #444;
+            transition: background-color 0.5s;
+        }
+
+        .dot.active {
+            background-color: #F9D053;
+        }
+
+        #narrative-text {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .highlight-blue { color: #58C4DD; font-weight: bold; }
+        .highlight-gold { color: #F9D053; font-weight: bold; }
+        .highlight-green { color: #83C167; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<canvas id="mathCanvas"></canvas>
+
+<div class="act-indicator">
+    <div class="dot active" id="dot-0"></div>
+    <div class="dot" id="dot-1"></div>
+    <div class="dot" id="dot-2"></div>
+    <div class="dot" id="dot-3"></div>
+</div>
+
+<div class="overlay">
+    <div id="narrative-text" class="mb-6">
+        <h2 id="act-title" class="text-3xl font-bold mb-2 text-[#58C4DD]">Act 1: The Hidden Master</h2>
+        <p id="act-description" class="text-lg italic">
+            In 1991, Yitang Zhang received his PhD from Purdue but left without a recommendation. 
+            For years, he worked in obscurity—at a <span class="highlight-gold">Subway restaurant</span> and as a delivery driver—all while privately contemplating the deepest mysteries of prime numbers.
+        </p>
+    </div>
+    <div class="flex justify-center interactive">
+        <button id="nextBtn" class="btn-3b1b">Next Act: The Breakthrough</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('mathCanvas');
+    const ctx = canvas.getContext('2d');
+    const nextBtn = document.getElementById('nextBtn');
+    const actTitle = document.getElementById('act-title');
+    const actDesc = document.getElementById('act-description');
+
+    let width, height;
+    let currentAct = 0;
+    let frame = 0;
+
+    const colors = {
+        bg: '#1C1C1C',
+        blue: '#58C4DD',
+        green: '#83C167',
+        gold: '#F9D053',
+        red: '#FF6B6B',
+        white: '#E0E0E0',
+        grid: '#333333'
+    };
+
+    const narrative = [
+        {
+            title: "Act 1: The Hidden Master",
+            desc: "For years, Zhang lived a quiet life. While working at a <span class='highlight-gold'>Subway in Kentucky</span>, he was actually a brilliant mind in exile. The animation shows the 'Prime Number Line'—primes become rarer as we count higher, a lonely trail Zhang followed for decades.",
+            btn: "The Breakthrough",
+            model: "distribution"
+        },
+        {
+            title: "Act 2: The Breakthrough",
+            desc: "On July 3, 2012, while watching deer in a friend's backyard, Zhang saw the 'door.' He proved that even as we reach infinity, there are <span class='highlight-blue'>infinitely many pairs</span> of primes separated by less than <span class='highlight-gold'>70 million</span>.",
+            btn: "The World Reacts",
+            model: "gaps"
+        },
+        {
+            title: "Act 3: Global Acclaim",
+            desc: "Zhang's 2013 paper shook mathematics. The <span class='highlight-green'>Polymath Project</span>, led by Terence Tao, built upon his work to shrink the bound from 70 million down to just <span class='highlight-gold'>246</span>. The animation visualizes the 'Sieve' narrowing the possibilities.",
+            btn: "The Final Frontier",
+            model: "sieve"
+        },
+        {
+            title: "Act 4: The Final Frontier",
+            desc: "Now a celebrity, Zhang continues to hunt. His latest quest involves the <span class='highlight-red'>Landau-Siegel zeros</span>—elusive complex points that, if they don't exist, would confirm major patterns in the distribution of primes.",
+            btn: "Restart Journey",
+            model: "zeros"
+        }
+    ];
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Math Helpers
+    function isPrime(n) {
+        if (n < 2) return false;
+        for (let i = 2; i <= Math.sqrt(n); i++) {
+            if (n % i === 0) return false;
+        }
+        return true;
+    }
+
+    // --- Animation Models ---
+
+    // 1. Prime Distribution (Act 1)
+    function drawDistribution() {
+        const spacing = 15;
+        const startX = width / 2 - (frame * 2) % (spacing * 100);
+        
+        // Grid lines
+        ctx.strokeStyle = colors.grid;
+        ctx.lineWidth = 1;
+        for(let i = -10; i < width / spacing + 10; i++) {
+            const x = startX + i * spacing;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+
+        // Prime points
+        ctx.font = "14px 'Roboto Mono'";
+        for(let i = 0; i < 200; i++) {
+            const num = Math.floor(frame / 5) + i;
+            const x = startX + i * spacing;
+            
+            if (isPrime(num)) {
+                ctx.fillStyle = colors.blue;
+                ctx.beginPath();
+                ctx.arc(x, height / 2, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.globalAlpha = 0.5;
+                ctx.fillText(num, x - 10, height / 2 - 20);
+                ctx.globalAlpha = 1.0;
+            } else {
+                ctx.fillStyle = "#444";
+                ctx.beginPath();
+                ctx.arc(x, height / 2, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // 2. Bounded Gaps (Act 2)
+    function drawGaps() {
+        const centerY = height / 2;
+        const pulse = Math.sin(frame * 0.05) * 10;
+        
+        // Gap bar
+        ctx.strokeStyle = colors.gold;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        
+        const gapSize = 150 + pulse;
+        const x1 = width/2 - gapSize/2;
+        const x2 = width/2 + gapSize/2;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, centerY);
+        ctx.lineTo(x2, centerY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Brackets
+        ctx.beginPath();
+        ctx.moveTo(x1, centerY - 20);
+        ctx.lineTo(x1, centerY + 20);
+        ctx.moveTo(x2, centerY - 20);
+        ctx.lineTo(x2, centerY + 20);
+        ctx.stroke();
+
+        ctx.fillStyle = colors.blue;
+        ctx.beginPath();
+        ctx.arc(x1, centerY, 8, 0, Math.PI * 2);
+        ctx.arc(x2, centerY, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = colors.gold;
+        ctx.textAlign = "center";
+        ctx.font = "24px 'Roboto Mono'";
+        ctx.fillText("H < 70,000,000", width/2, centerY - 40);
+        
+        ctx.fillStyle = colors.blue;
+        ctx.fillText("p(n)", x1, centerY + 50);
+        ctx.fillText("p(n+1)", x2, centerY + 50);
+    }
+
+    // 3. Sieve Visualization (Act 3)
+    let sieveParticles = [];
+    function initSieve() {
+        sieveParticles = [];
+        for(let i = 0; i < 50; i++) {
+            sieveParticles.push({
+                x: Math.random() * width,
+                y: -10,
+                v: 2 + Math.random() * 3,
+                isMatch: Math.random() > 0.8
+            });
+        }
+    }
+
+    function drawSieve() {
+        // Drawing a "funnel"
+        ctx.strokeStyle = colors.green;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(width/2 - 200, 100);
+        ctx.lineTo(width/2 - 50, 400);
+        ctx.lineTo(width/2 + 50, 400);
+        ctx.lineTo(width/2 + 200, 100);
+        ctx.stroke();
+
+        if (frame % 10 === 0) {
+            sieveParticles.push({
+                x: width/2 - 150 + Math.random() * 300,
+                y: 50,
+                v: 2 + Math.random() * 2,
+                isMatch: Math.random() > 0.7
+            });
+        }
+
+        sieveParticles.forEach((p, index) => {
+            p.y += p.v;
+            // Fake physics toward center
+            if (p.y < 400) {
+                p.x += (width/2 - p.x) * 0.01;
+            }
+
+            if (p.isMatch) {
+                ctx.fillStyle = colors.gold;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillStyle = "rgba(255,100,100,0.3)";
+                ctx.fillRect(p.x, p.y, 3, 3);
+            }
+
+            if (p.y > height) sieveParticles.splice(index, 1);
+        });
+
+        ctx.fillStyle = colors.green;
+        ctx.font = "20px 'Roboto Mono'";
+        ctx.fillText("k-tuple filtering", width/2, 80);
+        ctx.fillStyle = colors.gold;
+        ctx.fillText("Current Bound: 246", width/2, 450);
+    }
+
+    // 4. Landau-Siegel Zeros (Act 4)
+    function drawZeros() {
+        const cx = width / 2;
+        const cy = height / 3;
+        const scale = 300;
+
+        // Complex Plane
+        ctx.strokeStyle = colors.grid;
+        ctx.beginPath();
+        ctx.moveTo(cx - 400, cy);
+        ctx.lineTo(cx + 100, cy);
+        ctx.moveTo(cx, cy - 200);
+        ctx.lineTo(cx, cy + 200);
+        ctx.stroke();
+
+        // 1-line
+        ctx.strokeStyle = colors.red;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 200);
+        ctx.lineTo(cx, cy + 200);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Critical line 1/2
+        ctx.strokeStyle = colors.blue;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(cx - scale/2, cy - 200);
+        ctx.lineTo(cx - scale/2, cy + 200);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+        // Normal Zeros on Critical Line
+        for(let i = 1; i < 6; i++) {
+            const offset = (Math.sin(frame * 0.02 + i) * 20);
+            ctx.fillStyle = colors.blue;
+            ctx.beginPath();
+            ctx.arc(cx - scale/2, cy - 150 + (i * 60) + offset, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // The "Exceptional" Zero (Siegel Zero)
+        const siegelX = cx - 10 + Math.sin(frame * 0.01) * 5;
+        ctx.fillStyle = colors.gold;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = colors.gold;
+        ctx.beginPath();
+        ctx.arc(siegelX, cy, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = colors.white;
+        ctx.font = "16px 'Roboto Mono'";
+        ctx.fillText("σ = 1", cx + 20, cy - 180);
+        ctx.fillStyle = colors.gold;
+        ctx.fillText("Exceptional Zero?", siegelX, cy + 30);
+    }
+
+    // --- Main Loop ---
+    function animate() {
+        ctx.fillStyle = colors.bg;
+        ctx.fillRect(0, 0, width, height);
+
+        frame++;
+
+        switch(narrative[currentAct].model) {
+            case "distribution": drawDistribution(); break;
+            case "gaps": drawGaps(); break;
+            case "sieve": drawSieve(); break;
+            case "zeros": drawZeros(); break;
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    nextBtn.addEventListener('click', () => {
+        currentAct = (currentAct + 1) % narrative.length;
+        
+        // Update UI
+        actTitle.innerText = narrative[currentAct].title;
+        actDesc.innerHTML = narrative[currentAct].desc;
+        nextBtn.innerText = "Next Act: " + narrative[currentAct].btn;
+
+        // Update Dots
+        document.querySelectorAll('.dot').forEach((dot, idx) => {
+            dot.classList.toggle('active', idx === currentAct);
+        });
+
+        if (narrative[currentAct].model === "sieve") initSieve();
+    });
+
+    window.onload = animate;
+</script>
+</body>
+</html>
