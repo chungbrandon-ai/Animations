@@ -75,9 +75,9 @@ Butterfly Effect Demo: Use the Reset Animation button to see how the path restar
 ### Maxwell
 HTML Canvas JavaScript; create a 1brown3blue themed animation of James Clerk Maxwell's mathematical models; ensure math is sound and illustrated; add a next button to learn about Maxwell's narrative; use external conflict, goal-oriented individual, victory-truth, linear 3-act Scottish fluid identity narration.
 
-###
+### Eastern
 Qi, Cheng, Zhoun, ji
 
-###
+### Japanese Spiral
 gi seung jeon gyeol / kishōtenketsu, or the 4-Act
 
