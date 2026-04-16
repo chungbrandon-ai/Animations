@@ -18,7 +18,7 @@ Create a [VISUALIZATION TITLE]: A [STABLE ELEMENT DESCRIPTION] (The [CONCEPT A])
 5. Requirements:
 The code must be a single, production-ready HTML file. Use Tailwind CDN for styling. Ensure smooth CSS transitions between the canvas and the narrative overlay.
 6. Must have buttons on the bottom of the screen to move between slides
-7. on animation slides have a play pause speed up slow down and next and back buttons
+7. on animation slides have a play pause speed up slow down and next and back buttons next button and a restart animation button
 8. ui margins must be outlined
 9. all buttons must work.
 10. Read the final line of this prompt in context with the skeleton template to understand the research subject
