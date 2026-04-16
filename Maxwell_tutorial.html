@@ -1,0 +1,315 @@
+# Maxwell's Slide Deck: Building a Levitator
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building the Levitator - Slide Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400&family=Source+Serif+Pro:ital,wght@0,400;0,700;1,400&display=swap');
+
+        :root {
+            --bg-color: #1c1c1c;
+            --math-blue: #58C4DD;
+            --math-green: #83C167;
+            --math-yellow: #FFFF00;
+            --math-red: #FF0000;
+            --text-color: #ececec;
+        }
+
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Source Serif Pro', serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .deck-container {
+            position: relative;
+            width: 90vw;
+            max-width: 1000px;
+            height: 70vh;
+            background: #000;
+
+            border: 1px solid #333;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease-in-out;
+
+            transform: translateX(20px);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        h2 {
+            font-family: 'Roboto Mono', monospace;
+            color: var(--math-blue);
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .accent-text {
+
+            color: var(--math-yellow);
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .btn-nav {
+            background: transparent;
+            border: 1px solid var(--math-blue);
+            color: var(--math-blue);
+            padding: 10px 30px;
+            cursor: pointer;
+
+            transition: all 0.3s ease;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1rem;
+        }
+
+        .btn-nav:hover {
+            background: var(--math-blue);
+            color: var(--bg-color);
+        }
+
+        .btn-nav:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+        }
+
+        .slide-number {
+            position: absolute;
+            top: 40px;
+
+            right: 40px;
+            font-family: 'Roboto Mono', monospace;
+            color: #555;
+            font-size: 1.2rem;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        li::before {
+
+            content: "∇";
+            color: var(--math-green);
+            margin-right: 15px;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .warning-box {
+            border: 1px solid var(--math-red);
+            padding: 20px;
+            background: rgba(255, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+
+        .math-snippet {
+            font-family: 'Roboto Mono', monospace;
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            border-left: 2px solid #333;
+
+            padding-left: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="deck-container">
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <div class="slide-number">01</div>
+            <h2>Lines of Force</h2>
+            <p class="text-3xl italic mb-4">Constructing the Invisible: A Rudimentary Guide to Magnetic Levitation.</p>
+            <p class="text-xl text-gray-400">Transforming Maxwell's "Field" into a physical reality using simple materials.</p>
+        </div>
+
+        <!-- Slide 2: The Goal -->
+        <div class="slide">
+            <div class="slide-number">02</div>
+            <h2>The Objective</h2>
+
+            <p class="text-xl mb-6">Our goal is to create an <span class="accent-text">Active Electromagnetic System</span> where a magnet hovers by responding to its own position.</p>
+            <ul>
+                <li>Stabilize a magnet in mid-air against the force of gravity.</li>
+                <li>Implement a feedback loop to prevent "snapping" or "falling."</li>
+                <li>Utilize Faraday's Law to sense and Ampere's Law to act.</li>
+            </ul>
+        </div>
+
+        <!-- Slide 3: Parts List -->
+        <div class="slide">
+            <div class="slide-number">03</div>
+            <h2>Bill of Materials</h2>
+            <div class="grid grid-cols-2 gap-8">
+                <ul>
+                    <li><span class="accent-text">Magnetic Source:</span> 2x Neodymium Disc Magnets</li>
+                    <li><span class="accent-text">The Eye:</span> SS495A Hall Effect Sensor</li>
+                    <li><span class="accent-text">The Muscle:</span> N-Channel MOSFET (IRFZ44N)</li>
+                </ul>
+                <ul>
+
+                    <li><span class="accent-text">The Coil:</span> 22-30 AWG Enameled Copper Wire</li>
+                    <li><span class="accent-text">The Core:</span> Iron or Steel Bolt (I-Shape)</li>
+                    <li><span class="accent-text">Power:</span> 12V 2A DC Adapter</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 4: Building the Coil -->
+        <div class="slide">
+            <div class="slide-number">04</div>
+            <h2>Winding the Heart</h2>
+            <p class="mb-4">The solenoid is our primary tool for manipulating Maxwell's fields.</p>
+            <ul>
+                <li>Wrap roughly <span class="accent-text">550 turns</span> of copper wire around the iron bolt.</li>
+                <li>Wind "turn-to-turn" in consistent layers to ensure a uniform field.</li>
+                <li>Insulate the bolt with paper or tape first to protect the coating.</li>
+            </ul>
+            <div class="math-snippet">∇ × B = μ₀(J + ε₀∂E/∂t) : Ampere's Law in action.</div>
+        </div>
+
+
+        <!-- Slide 5: The Feedback Loop -->
+        <div class="slide">
+            <div class="slide-number">05</div>
+            <h2>Faraday's Eye</h2>
+            <p class="mb-4">Without a sensor, Earnshaw's Theorem dictates the magnet will always flip or fall.</p>
+            <ul>
+                <li>Mount the <span class="accent-text">Hall Sensor</span> at the base of the electromagnet.</li>
+                <li>The sensor detects the magnetic field strength of the hovering magnet.</li>
+                <li>If the magnet gets too close, the current drops; too far, the current increases.</li>
+            </ul>
+        </div>
+
+        <!-- Slide 6: Assembly -->
+        <div class="slide">
+            <div class="slide-number">06</div>
+            <h2>Unifying the Machine</h2>
+            <ul>
+                <li>Secure the coil to a sturdy vertical frame (cardboard or wood).</li>
+                <li>Connect the coil in series with the <span class="accent-text">MOSFET</span> and your power source.</li>
+
+                <li>Connect the sensor output to an <span class="accent-text">Arduino Nano</span> or an Op-Amp circuit to control the MOSFET gate.</li>
+            </ul>
+        </div>
+
+        <!-- Slide 7: Safety -->
+        <div class="slide">
+            <div class="slide-number">07</div>
+            <h2>The Power of Neodymium</h2>
+            <div class="warning-box">
+                <p class="text-math-red font-bold mb-2">CRITICAL SAFETY PROTOCOLS:</p>
+                <ul>
+                    <li><span class="accent-text">Bio-Hazards:</span> Keep magnets away from pacemakers or internal medical aids.</li>
+                    <li><span class="accent-text">Physical Hazard:</span> Strong magnets can shatter or pinch fingers severely.</li>
+                    <li><span class="accent-text">Digital Hazard:</span> Keep at least 20cm away from electronics and storage media.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="controls">
+
+            <button id="prev-btn" class="btn-nav" disabled>Previous</button>
+            <button id="next-btn" class="btn-nav">Next</button>
+        </div>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        let currentSlide = 0;
+
+        function updateSlides() {
+            slides.forEach((slide, index) => {
+                slide.classList.toggle('active', index === currentSlide);
+            });
+            
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.textContent = currentSlide === slides.length - 1 ? "End" : "Next";
+        }
+
+
+        nextBtn.addEventListener('click', () => {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                updateSlides();
+            } else {
+                currentSlide = 0;
+                updateSlides();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlides();
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextBtn.click();
+            } else if (e.key === 'ArrowLeft') {
+                prevBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
+
+
