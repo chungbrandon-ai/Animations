@@ -1,0 +1,398 @@
+# Kishōtenketsu: The Mathematical Odyssey of Seki Takakazu
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-color: #1c1c1c;
+            --panel-bg: #252525;
+            --text-color: #ece6e2;
+            --accent-blue: #58c4dd;
+            --accent-green: #83c167;
+            --accent-yellow: #fff100;
+            --accent-red: #e07a5f;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top half: Animation Area */
+        #canvas-section {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* Bottom half: Narrative Panel */
+        #ui-section {
+            height: 35vh;
+            background-color: var(--panel-bg);
+            border-top: 2px solid #333;
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        #header-row {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #act-indicator {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-yellow);
+            font-weight: bold;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 300;
+            color: var(--accent-blue);
+            font-size: 1.8rem;
+        }
+
+
+        #narrative-content {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #ccc;
+            max-width: 800px;
+            margin-bottom: 20px;
+            flex-grow: 1;
+            transition: opacity 0.4s ease;
+        }
+
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            background-color: transparent;
+            border: 2px solid var(--accent-blue);
+
+            color: var(--accent-blue);
+            padding: 10px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: var(--accent-blue);
+            color: var(--bg-color);
+        }
+
+        button:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+
+        }
+
+        #progress-container {
+            flex-grow: 1;
+            margin: 0 40px;
+            height: 4px;
+            background: #333;
+            position: relative;
+        }
+
+        #progress-bar {
+            height: 100%;
+            background: var(--accent-blue);
+            width: 25%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+    </style>
+</head>
+<body>
+
+
+    <div id="canvas-section">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="ui-section">
+        <div id="header-row">
+            <div id="act-indicator">Act I: Ki (Introduction)</div>
+            <h1 id="title-display">The Arithmetical Sage</h1>
+        </div>
+        
+        <div id="narrative-content">
+            In 1642, while Europe birthed Newton, Japan birthed Seki Takakazu. In an era of isolation, he transformed mathematics into an art form known as Wasan.
+        </div>
+
+        <div id="controls">
+            <button id="prevBtn" disabled>← Previous</button>
+            <div id="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+
+            <button id="nextBtn">Continue the Narrative →</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const titleEl = document.getElementById('title-display');
+        const actEl = document.getElementById('act-indicator');
+        const narrativeEl = document.getElementById('narrative-content');
+        const progressEl = document.getElementById('progress-bar');
+
+        let width, height;
+        let time = 0;
+        let currentAct = 0;
+        let opacity = 1;
+
+
+        const acts = [
+            {
+                act: "Act I: Ki (Introduction)",
+                title: "The Arithmetical Sage",
+                narrative: "Seki Takakazu was a samurai official who spent his nights deciphering ancient Chinese texts. He replaced cumbersome counting rods with a new algebraic notation (Boshoho), allowing Japan to solve multiple variables for the first time.",
+                render: renderIntro
+            },
+            {
+                act: "Act II: Shō (Development)",
+                title: "The Circle Principle (Enri)",
+                narrative: "Seki's greatest fascination was the circle. Through 'Enri,' he used infinite series and a 131,072-sided polygon to calculate π to 10 decimal places. He essentially developed calculus in parallel with the West.",
+                render: renderEnri
+            },
+            {
+                act: "Act III: Ten (The Twist)",
+                title: "Preceding the West",
+                narrative: "The 'Twist' in Seki's story is his sheer foresight. He defined Determinants to solve linear systems in 1683—years before Leibniz—and handled equations to the 108th degree using his version of the Newton-Raphson method.",
+                render: renderTen
+            },
+
+            {
+                act: "Act IV: Ketsu (Conclusion)",
+                title: "The Immortal Legacy",
+                narrative: "Seki became a legend, earning the title 'Sansei' (Mathematical Sage). His discovery of the Bernoulli numbers and his establishment of the Seki School ensured that Japanese math would flourish as a unique art for 200 years.",
+                render: renderKetsu
+            }
+        ];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight * 0.65;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Navigation
+        nextBtn.addEventListener('click', () => {
+            if (currentAct < acts.length - 1) {
+
+                currentAct++;
+                updateUI();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentAct > 0) {
+                currentAct--;
+                updateUI();
+            }
+        });
+
+        function updateUI() {
+            narrativeEl.style.opacity = 0;
+            setTimeout(() => {
+                const actData = acts[currentAct];
+                actEl.textContent = actData.act;
+                titleEl.textContent = actData.title;
+                narrativeEl.textContent = actData.narrative;
+
+                narrativeEl.style.opacity = 1;
+                
+                progressEl.style.width = `${((currentAct + 1) / acts.length) * 100}%`;
+                
+                prevBtn.disabled = currentAct === 0;
+                nextBtn.textContent = currentAct === acts.length - 1 ? "Replay Narrative" : "Continue the Narrative →";
+                
+                if(currentAct === acts.length - 1 && nextBtn.textContent === "Replay Narrative") {
+                    nextBtn.onclick = () => location.reload();
+                }
+            }, 400);
+        }
+
+        // --- Drawing Helpers ---
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            const size = 60;
+
+            for(let x = (width/2) % size; x < width; x += size) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for(let y = (height/2) % size; y < height; y += size) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+            }
+        }
+
+        // Act 1: Introduction (Abstract Notation)
+        function renderIntro() {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Draw floating symbols representing his notation
+            ctx.fillStyle = 'rgba(88, 196, 221, 0.1)';
+            for(let i = 0; i < 5; i++) {
+                const offset = Math.sin(time + i) * 20;
+                ctx.beginPath();
+                ctx.arc(centerX + (i-2)*150, centerY + offset, 50, 0, Math.PI*2);
+
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = varColor('--accent-blue');
+            ctx.font = 'bold 40px serif';
+            ctx.textAlign = 'center';
+            ctx.fillText("関 孝和", centerX, centerY + 15);
+        }
+
+        // Act 2: Development (Enri/Pi)
+        function renderEnri() {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const r = 180;
+            
+            // Perfect Circle
+            ctx.strokeStyle = varColor('--accent-blue');
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(centerX, centerY, r, 0, Math.PI*2); ctx.stroke();
+
+
+            // Approximating Polygon
+            const sides = Math.floor(4 + (Math.sin(time * 0.5) + 1) * 15);
+            ctx.strokeStyle = varColor('--accent-green');
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for(let i = 0; i <= sides; i++) {
+                const a = (i/sides) * Math.PI * 2;
+                const px = centerX + Math.cos(a) * r;
+                const py = centerY + Math.sin(a) * r;
+                if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+            
+            ctx.fillStyle = varColor('--text-color');
+            ctx.font = '20px monospace';
+            ctx.fillText(`Sides: ${sides}`, centerX, centerY + r + 40);
+            ctx.fillText(`π ≈ 3.1415926535...`, centerX, centerY + 10);
+        }
+
+
+        // Act 3: The Twist (Determinants/High degree)
+        function renderTen() {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Draw a Matrix Grid pulsing
+            const scale = 1 + Math.sin(time*2)*0.05;
+            ctx.strokeStyle = varColor('--accent-red');
+            ctx.lineWidth = 2;
+            
+            for(let i = -1; i <= 1; i++) {
+                for(let j = -1; j <= 1; j++) {
+                    const x = centerX + j * 100 * scale;
+                    const y = centerY + i * 80 * scale;
+                    ctx.strokeRect(x-40, y-30, 80, 60);
+                    ctx.fillStyle = varColor('--accent-blue');
+                    ctx.font = '16px monospace';
+                    ctx.fillText(`a${i+2}${j+2}`, x, y + 5);
+                }
+
+            }
+
+            // Determinant "Sweep" Line
+            ctx.strokeStyle = varColor('--accent-yellow');
+            ctx.beginPath();
+            const sweep = (time % 2) / 2;
+            ctx.moveTo(centerX - 150, centerY - 120 + sweep*240);
+            ctx.lineTo(centerX + 150, centerY - 120 + sweep*240);
+            ctx.stroke();
+        }
+
+        // Act 4: Conclusion (Bernoulli Numbers & School)
+        function renderKetsu() {
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Bernoulli Sequence (Bars)
+            const values = [1, 0.5, 0.166, 0, -0.033, 0, 0.023];
+            for(let i = 0; i < values.length; i++) {
+
+                const h = values[i] * 400;
+                ctx.fillStyle = i % 2 === 0 ? varColor('--accent-blue') : varColor('--accent-green');
+                ctx.fillRect(centerX - 200 + i*60, centerY + 50, 40, -h - Math.sin(time + i)*10);
+            }
+            
+            ctx.fillStyle = varColor('--accent-yellow');
+            ctx.font = '24px serif';
+            ctx.fillText("SEKI SCHOOL OF MATHEMATICS", centerX, centerY - 100);
+        }
+
+        function varColor(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name);
+        }
+
+        function animate() {
+            time += 0.015;
+            ctx.clearRect(0, 0, width, height);
+            drawGrid();
+            
+
+            acts[currentAct].render();
+            
+            requestAnimationFrame(animate);
+        }
+
+        window.onload = animate;
+    </script>
+</body>
+</html>
+
+
