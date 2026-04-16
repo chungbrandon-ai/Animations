@@ -39,3 +39,4 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 ### [Emile Durkheim](https://share.google/aimode/zWsXrZehoneSB4EnY)
 ### [Emile Durkheim v2](https://share.google/aimode/e822QmQSu7o6IUZ9p)
 ### [Karpathy vs Marcus v2](https://share.google/aimode/heM27iEYUzDj96d98)
+### [undergraduate research first](https://share.google/aimode/v2Jc4pu7KxWFBWjqJ)
