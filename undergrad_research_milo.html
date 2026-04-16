@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathematical Visualizations</title>
+    <style>
+        :root {
+            --bg-color: #161616;
+            --text-color: #e0e0e0;
+            --accent-cyan: #51cfed;
+            --accent-yellow: #ffcf59;
+            --accent-pink: #ff7eb6;
+            --accent-green: #7cfc00;
+            --ui-bg: rgba(30, 30, 30, 0.85);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Adjusted UI positioning to create "Safe Zones" for equations */
+        .ui-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--ui-bg);
+            padding: 12px 25px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid #444;
+            z-index: 100;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            max-width: 320px;
+            background: var(--ui-bg);
+            padding: 15px;
+            border-radius: 12px;
+            border-left: 4px solid var(--accent-cyan);
+            pointer-events: none;
+            z-index: 90;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        h1 { margin: 0 0 8px 0; font-size: 1.1rem; color: var(--accent-cyan); }
+        p { margin: 0; font-size: 0.85rem; line-height: 1.4; opacity: 0.9; }
+
+        button {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #555;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: rgba(81, 207, 237, 0.2);
+            border-color: var(--accent-cyan);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        input[type="range"] {
+            cursor: pointer;
+            accent-color: var(--accent-cyan);
+        }
+
+        .subject-title {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.3rem;
+            color: var(--accent-yellow);
+            font-style: italic;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            z-index: 90;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="mathCanvas"></canvas>
+        
+        <div class="info-panel" id="infoPanel">
+            <h1 id="panelTitle">Riemann Zeta Function</h1>
+            <p id="panelDesc">Visualizing the Euler Product Formula and the complex mapping that defines the Zeta landscape.</p>
+        </div>
+
+        <div class="subject-title" id="subjectName">Zeta & Euler</div>
+
+        <div class="ui-overlay">
+            <div class="control-group">
+                <button id="backBtn">Back</button>
+                <button id="playPauseBtn">Pause</button>
+                <button id="nextBtn">Next</button>
+            </div>
+            <div class="control-group">
+                <label style="font-size: 0.8rem; opacity: 0.7;">SPEED</label>
+                <input type="range" id="speedSlider" min="0.1" max="3" step="0.1" value="1">
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('mathCanvas');
+    const ctx = canvas.getContext('2d');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelDesc = document.getElementById('panelDesc');
+    const subjectName = document.getElementById('subjectName');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const speedSlider = document.getElementById('speedSlider');
+
+    let width, height;
+    let time = 0;
+    let isPaused = false;
+    let currentSubject = 0;
+    let speedMult = 1;
+
+    const subjects = [
+        {
+            title: "Riemann Zeta & Euler",
+            desc: "Visualizing s ↦ ζ(s). The Euler Product links primes to the function's value. Here we see a grid being transformed by the first few terms of the Dirichlet series.",
+            name: "Riemann Zeta Function"
+        },
+        {
+            title: "Euler-Mascheroni Constant (γ)",
+            desc: "The limit of (H_n - ln n). The blue area represents the harmonic sum, while the yellow curve is 1/x. The 'leaked' area converges to γ ≈ 0.577.",
+            name: "The γ Constant"
+        },
+        {
+            title: "Dirichlet Inverse",
+            desc: "In arithmetic functions, f * g = ε. We visualize the convolution as a web of divisors, where the inverse 'unwinds' the original function's values.",
+            name: "Dirichlet Convolution"
+        },
+        {
+            title: "Legendre Symbols (a/p)",
+            desc: "Investigating quadratic residues. We see a prime modulus grid where cells are highlighted if 'a' is a perfect square modulo 'p'.",
+            name: "Legendre Symbols"
+        }
+    ];
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- Math Utilities ---
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    // --- Scene Drawing Functions ---
+
+    function drawZeta(t) {
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const scale = 100;
+
+        // Draw background grid
+        for(let i = -10; i <= 10; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, centerY + i * scale);
+            ctx.lineTo(width, centerY + i * scale);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(centerX + i * scale, 0);
+            ctx.lineTo(centerX + i * scale, height);
+            ctx.stroke();
+        }
+
+        ctx.lineWidth = 2;
+        for(let x = -3; x <= 3; x += 0.5) {
+            ctx.beginPath();
+            ctx.strokeStyle = `hsla(${200 + x*20}, 70%, 60%, 0.5)`;
+            for(let y = -5; y <= 5; y += 0.1) {
+                let s_re = x;
+                let s_im = y;
+                
+                let angle = Math.atan2(s_im, s_re) + t * 0.2;
+                let dist = Math.sqrt(s_re*s_re + s_im*s_im);
+                let warpedDist = dist + Math.sin(dist - t) * 0.5;
+                
+                let outX = centerX + Math.cos(angle) * warpedDist * scale;
+                let outY = centerY + Math.sin(angle) * warpedDist * scale;
+                
+                if (y === -5) ctx.moveTo(outX, outY);
+                else ctx.lineTo(outX, outY);
+            }
+            ctx.stroke();
+        }
+        
+        // Equation placed in a clear area (bottom center-right)
+        ctx.fillStyle = '#51cfed';
+        ctx.font = '24px serif';
+        ctx.textAlign = 'right';
+        ctx.fillText("ζ(s) = Σ 1/n^s", width - 50, height - 100);
+    }
+
+    function drawEulerMascheroni(t) {
+        // Increased margins to avoid UI boxes
+        const marginX = 120;
+        const marginYTop = 150;
+        const marginYBottom = 150;
+        const graphW = width - marginX * 2;
+        const graphH = height - marginYTop - marginYBottom;
+        const stepX = graphW / 10;
+        
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(marginX, height - marginYBottom);
+        ctx.lineTo(width - marginX, height - marginYBottom);
+        ctx.moveTo(marginX, height - marginYBottom);
+        ctx.lineTo(marginX, marginYTop);
+        ctx.stroke();
+
+        // Draw 1/x curve
+        ctx.strokeStyle = '#ffcf59';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for(let x = 0.1; x < 10; x += 0.1) {
+            let px = marginX + x * stepX;
+            let py = (height - marginYBottom) - (1/x) * stepX * 5;
+            if(py < marginYTop) py = marginYTop; // Clip to safe area
+            if(x === 0.1) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // Draw Harmonic bars
+        ctx.fillStyle = 'rgba(81, 207, 237, 0.3)';
+        for(let n = 1; n < 10; n++) {
+            let h = (1/n) * stepX * 5;
+            let x = marginX + (n-1) * stepX;
+            let y = (height - marginYBottom) - h;
+            
+            let growth = Math.min(1, t * 0.5 - n * 0.2);
+            if(growth > 0) {
+                ctx.fillRect(x, y, stepX, h * growth);
+                ctx.strokeStyle = '#51cfed';
+                ctx.strokeRect(x, y, stepX, h * growth);
+            }
+        }
+        
+        // Equation moved to bottom safe zone to prevent overlap with top UI boxes
+        ctx.fillStyle = '#ffcf59';
+        ctx.font = '24px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("γ = lim_{n→∞} (H_n - ln n)", width/2, height - 90);
+    }
+
+    function drawDirichlet(t) {
+        const nodes = 12;
+        const radius = Math.min(width, height) * 0.28;
+        const cx = width / 2;
+        const cy = height / 2 + 20; // Shifted slightly down
+
+        for(let i = 1; i <= nodes; i++) {
+            let angle = (i / nodes) * Math.PI * 2 - Math.PI / 2;
+            let x = cx + Math.cos(angle) * radius;
+            let y = cy + Math.sin(angle) * radius;
+
+            ctx.strokeStyle = 'rgba(255, 126, 182, 0.2)';
+            for(let j = 1; j < i; j++) {
+                if(i % j === 0) {
+                    let angle2 = (j / nodes) * Math.PI * 2 - Math.PI / 2;
+                    let x2 = cx + Math.cos(angle2) * radius;
+                    let y2 = cy + Math.sin(angle2) * radius;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    let cpX = cx + Math.cos(angle + 0.5) * (radius * 0.5);
+                    let cpY = cy + Math.sin(angle + 0.5) * (radius * 0.5);
+                    ctx.quadraticCurveTo(cpX, cpY, x2, y2);
+                    ctx.stroke();
+                }
+            }
+
+            ctx.fillStyle = '#ff7eb6';
+            ctx.beginPath();
+            ctx.arc(x, y, 10 + Math.sin(t + i)*3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.font = '14px sans-serif';
+            ctx.fillText(i, x, y - 20);
+        }
+        
+        ctx.fillStyle = '#ff7eb6';
+        ctx.font = '22px serif';
+        ctx.fillText("(f * g)(n) = Σ_{d|n} f(d)g(n/d)", cx, height - 90);
+    }
+
+    function drawLegendre(t) {
+        const p = 17;
+        const cellSize = Math.min(width, height) / (p + 8);
+        const startX = (width - p * cellSize) / 2;
+        const startY = (height - p * cellSize) / 2 + 30; // Shifted down
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for(let a = 0; a < p; a++) {
+            let isResidue = false;
+            for(let x = 0; x < p; x++) {
+                if((x * x) % p === a) {
+                    isResidue = true;
+                    break;
+                }
+            }
+
+            let xPos = startX + a * cellSize;
+            let yPos = startY + (p/2) * cellSize;
+
+            let color = isResidue ? '#7cfc00' : '#ff7eb6';
+            if (a === 0) color = '#888';
+
+            ctx.fillStyle = color;
+            let animVal = Math.sin(t + a * 0.5) * 5;
+            ctx.fillRect(xPos, yPos + animVal, cellSize - 6, cellSize - 6);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = '10px sans-serif';
+            ctx.fillText(isResidue ? "1" : "-1", xPos + cellSize/2, yPos + cellSize/2 + animVal);
+            
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fillText(a, xPos + cellSize/2, yPos + cellSize + 15);
+        }
+
+        // Title and formula moved to bottom center to avoid top UI boxes
+        ctx.font = '24px serif';
+        ctx.fillStyle = 'var(--accent-green)';
+        ctx.fillText(`(a / ${p}) ≡ a^{(p-1)/2} (mod ${p})`, width/2, height - 90);
+    }
+
+    function animate() {
+        if(!isPaused) {
+            time += 0.02 * speedMult;
+        }
+
+        ctx.fillStyle = 'rgba(22, 22, 22, 0.2)'; 
+        ctx.fillRect(0, 0, width, height);
+
+        switch(currentSubject) {
+            case 0: drawZeta(time); break;
+            case 1: drawEulerMascheroni(time); break;
+            case 2: drawDirichlet(time); break;
+            case 3: drawLegendre(time); break;
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    function updateSubject() {
+        const sub = subjects[currentSubject];
+        panelTitle.innerText = sub.title;
+        panelDesc.innerText = sub.desc;
+        subjectName.innerText = sub.name;
+        time = 0; 
+    }
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+        currentSubject = (currentSubject + 1) % subjects.length;
+        updateSubject();
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+        currentSubject = (currentSubject - 1 + subjects.length) % subjects.length;
+        updateSubject();
+    });
+
+    playPauseBtn.addEventListener('click', () => {
+        isPaused = !isPaused;
+        playPauseBtn.innerText = isPaused ? 'Play' : 'Pause';
+    });
+
+    speedSlider.addEventListener('input', (e) => {
+        speedMult = parseFloat(e.target.value);
+    });
+
+    updateSubject();
+    animate();
+
+</script>
+</body>
+</html>
