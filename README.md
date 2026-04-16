@@ -23,14 +23,18 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 9. all buttons must work.
 10. Read the final line of this prompt in context with the skeleton template to understand the research subject
 11. includes quotes and facts over spontaneous creative writing
+ Prompt: fill in the correct prompt boxes to learn about [insert idea]
 
-## Prompt: fill in the correct prompt boxes to learn about [insert idea]
+# Prompt v2
+"use HTML5 Canvas and JavaScript; create a 1brown3blue like animation of *subject; add a next button to learn about *subject;, add a back button to go back add a play pause slow fast mechanism to control the animation" *subject; is
 
 ##
 ### [make a model](https://share.google/aimode/hwJQrTZbXASmUkiFW)
 ### [Runge_Kutta](https://share.google/aimode/JTtljGin54WRIISct)
 ### [Runge Kutta v2](https://share.google/aimode/26OeuZOnEwJqvpcuq)
 ### [Euler](https://share.google/aimode/AVdF882n7oDu8d59r)
+### [Euler v2] (https://share.google/aimode/MUpGZfdeg2iW0DDF1)
+### [Euler v3] (https://share.google/aimode/i4KT5FxAma4HxKmds)
 ### [Hodgkin-Huxley Model](https://share.google/aimode/AVdF882n7oDu8d59r)
 ### [Emile Durkheim](https://share.google/aimode/zWsXrZehoneSB4EnY)
 ### [Emile Durkheim v2](https://share.google/aimode/e822QmQSu7o6IUZ9p)
