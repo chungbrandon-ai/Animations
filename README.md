@@ -71,3 +71,13 @@ Key Features:
 Dynamic Perspective: You can move your mouse across the screen to rotate the 3D view and observe the attractor from different angles.
 Interactive Learning: The Learn More button opens an educational overlay that explains the math (the system of differential equations) and the concept of chaos theory.
 Butterfly Effect Demo: Use the Reset Animation button to see how the path restarts from a slightly randomized initial position, demonstrating sensitivity to initial conditions.
+
+### Maxwell
+HTML Canvas JavaScript; create a 1brown3blue themed animation of James Clerk Maxwell's mathematical models; ensure math is sound and illustrated; add a next button to learn about Maxwell's narrative; use external conflict, goal-oriented individual, victory-truth, linear 3-act Scottish fluid identity narration.
+
+###
+Qi, Cheng, Zhoun, ji
+
+###
+gi seung jeon gyeol / kishōtenketsu, or the 4-Act
+
