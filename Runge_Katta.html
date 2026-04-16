@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RK4 and Psychohistory Narrative</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&family=Lora:ital@1&display=swap');
+        
+        body {
+            background-color: #161616;
+            color: #ece6e2;
+            font-family: 'Roboto Mono', monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            border-radius: 12px;
+            background: #1c1c1c;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        canvas {
+            background-color: #1c1c1c;
+            display: block;
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+        }
+
+        #narrative-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(22, 22, 22, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1s ease;
+            padding: 40px;
+            text-align: center;
+            border-radius: 12px;
+            z-index: 10;
+        }
+
+        #narrative-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .narrative-title {
+            color: #58C4DD;
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+            font-family: 'Lora', serif;
+            font-style: italic;
+        }
+
+        .narrative-text {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            max-width: 750px;
+            margin-bottom: 30px;
+            color: #ccc;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        button {
+            background: rgba(88, 196, 221, 0.1);
+            border: 1px solid rgba(88, 196, 221, 0.3);
+            color: #58C4DD;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: rgba(88, 196, 221, 0.2);
+            border-color: #58C4DD;
+            transform: translateY(-1px);
+        }
+
+        .progress-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+        }
+
+        .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            transition: background 0.3s ease;
+        }
+        .dot.active { background: #58C4DD; }
+
+        .math-info {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            font-size: 0.75rem;
+            color: rgba(88, 196, 221, 0.6);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container">
+    <div class="math-info">System: dy/dt = sin(t) - 0.5y | Solver: Runge-Kutta 4th Order</div>
+    <canvas id="rk4Canvas"></canvas>
+    
+    <div id="narrative-overlay">
+        <div id="narrative-content">
+            <h2 class="narrative-title" id="slide-title">History of RK4</h2>
+            <p class="narrative-text" id="slide-text">Carl Runge and Martin Kutta developed this method around 1901.</p>
+        </div>
+        <div class="progress-indicator" id="dots"></div>
+    </div>
+
+    <div class="controls">
+        <button id="replayBtn">Reset</button>
+        <button id="nextBtn">Begin Journey</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('rk4Canvas');
+    const ctx = canvas.getContext('2d');
+    const replayBtn = document.getElementById('replayBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const overlay = document.getElementById('narrative-overlay');
+    const slideTitle = document.getElementById('slide-title');
+    const slideText = document.getElementById('slide-text');
+    const dotsContainer = document.getElementById('dots');
+
+    const COLORS = {
+        axes: '#58C4DD',
+        grid: 'rgba(88, 196, 221, 0.08)',
+        path: '#FFFF00',
+        k1: '#83C167',
+        kHighlight: '#FF5F5F',
+        yin: '#ece6e2', // Chaos/Individual
+        yang: '#58C4DD', // Order/Statistical
+        text: '#ece6e2'
+    };
+
+    const width = 1000;
+    const height = 600;
+    const unitSize = 45; 
+    const originX = 80;
+    const originY = height / 2 + 50;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const narrativeData = [
+        {
+            title: "The Pioneers",
+            text: "Carl Runge and Martin Kutta turned differential equations from abstract theory into an iterative, numerical toolkit in 1901. They realized that by sampling slopes at the midpoint of a step, they could achieve higher accuracy than simple linear projection."
+        },
+        {
+            title: "Psychohistory",
+            text: "Isaac Asimov's 'Foundation' imagined a future where these mathematical laws could predict human history. He called it Psychohistory—a science where individual free will is random noise, but the behavior of trillions is as predictable as a gas law."
+        },
+        {
+            title: "Political Limits",
+            text: "Today, we see these 'Political Laws' in action. Duverger's Law suggests that plurality systems inevitably converge toward two-party stability. Mathematics isn't just for stars; it's the hidden architecture of societies."
+        },
+        {
+            title: "Philosophy of the Midpoint",
+            text: "RK4 reminds us that the future is a weighted average. To know where we are going, we must peek ahead to the midpoint of our trajectory. True prediction requires balancing immediate momentum with future potential."
+        },
+        {
+            title: "Chaos & Order",
+            text: "Behold the interplay: The jagged, unpredictable path of the individual (Yin) vs. the smooth, calculated destiny of the aggregate (Yang). In the end, one cannot exist without the other.",
+            isVisual: true
+        }
+    ];
+
+    let currentSlide = -1; // Start before the first slide
+    let animationId;
+    let state = {
+        t: 0,
+        y: 1.5,
+        path: [{t: 0, y: 1.5}],
+        h: 0.6,
+        isFinished: false,
+        phase: 'idle', // 'rk4' or 'yinyang'
+        startTime: 0
+    };
+
+    // Math Functions
+    function f(t, y) { return Math.sin(t) - 0.5 * y; }
+    function toScreen(t, y) { return { x: originX + t * unitSize, y: originY - y * unitSize }; }
+
+    function drawGrid() {
+        ctx.strokeStyle = COLORS.grid;
+        ctx.lineWidth = 1;
+        for (let t = 0; t <= 20; t += 1) {
+            const s = toScreen(t, 0);
+            ctx.beginPath(); ctx.moveTo(s.x, 0); ctx.lineTo(s.x, height); ctx.stroke();
+        }
+        for (let y = -5; y <= 5; y += 1) {
+            const s = toScreen(0, y);
+            ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(width, s.y); ctx.stroke();
+        }
+        
+        ctx.strokeStyle = COLORS.axes;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(originX - 20, originY); ctx.lineTo(width - 50, originY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(originX, height - 50); ctx.lineTo(originX, 50); ctx.stroke();
+    }
+
+    function drawPath() {
+        if (state.path.length < 2) return;
+        ctx.strokeStyle = COLORS.path;
+        ctx.setLineDash([]);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const start = toScreen(state.path[0].t, state.path[0].y);
+        ctx.moveTo(start.x, start.y);
+        state.path.forEach(p => {
+            const s = toScreen(p.t, p.y);
+            ctx.lineTo(s.x, s.y);
+        });
+        ctx.stroke();
+    }
+
+    function performRK4Step() {
+        const { t, y, h } = state;
+        const k1 = f(t, y);
+        const k2 = f(t + h/2, y + h*k1/2);
+        const k3 = f(t + h/2, y + h*k2/2);
+        const k4 = f(t + h, y + h*k3);
+        
+        const nextY = y + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
+        state.t += h;
+        state.y = nextY;
+        state.path.push({t: state.t, y: state.y});
+    }
+
+    function drawYinYang(time) {
+        ctx.clearRect(0, 0, width, height);
+        drawGrid();
+
+        const elapsed = (time - state.startTime) / 1000;
+        
+        // The Yang: Statistical Order (Smooth Wave)
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = COLORS.yang;
+        ctx.beginPath();
+        for(let x = 0; x < 18; x += 0.1) {
+            const y = 2 * Math.sin(x * 0.5 + elapsed);
+            const pos = toScreen(x, y);
+            if (x === 0) ctx.moveTo(pos.x, pos.y);
+            else ctx.lineTo(pos.x, pos.y);
+        }
+        ctx.stroke();
+
+        // The Yin: Individual Chaos (Jittery Path)
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = COLORS.yin;
+        ctx.beginPath();
+        for(let x = 0; x < 18; x += 0.2) {
+            const noise = (Math.sin(x * 10 + elapsed * 5) * 0.4) + (Math.cos(x * 5) * 0.2);
+            const y = 2 * Math.sin(x * 0.5 + elapsed) + noise;
+            const pos = toScreen(x, y);
+            if (x === 0) ctx.moveTo(pos.x, pos.y);
+            else ctx.lineTo(pos.x, pos.y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = COLORS.text;
+        ctx.font = "italic 14px Lora";
+        ctx.fillText("Collective Destiny (Order)", 800, originY - 120);
+        ctx.fillStyle = COLORS.yin;
+        ctx.fillText("Individual Variance (Chaos)", 800, originY - 145);
+
+        animationId = requestAnimationFrame(drawYinYang);
+    }
+
+    function animateRK4() {
+        ctx.clearRect(0, 0, width, height);
+        drawGrid();
+        drawPath();
+
+        if (state.t < 18) {
+            performRK4Step();
+            setTimeout(() => {
+                animationId = requestAnimationFrame(animateRK4);
+            }, 100);
+        } else {
+            state.isFinished = true;
+            nextBtn.style.display = 'block';
+            nextBtn.innerText = "Enter Narrative";
+        }
+    }
+
+    function initDots() {
+        dotsContainer.innerHTML = '';
+        narrativeData.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = `dot ${i === currentSlide ? 'active' : ''}`;
+            dotsContainer.appendChild(dot);
+        });
+    }
+
+    function updateSlide() {
+        if (currentSlide < 0) {
+            overlay.classList.remove('active');
+            return;
+        }
+
+        const data = narrativeData[currentSlide];
+        slideTitle.innerText = data.title;
+        slideText.innerText = data.text;
+        overlay.classList.add('active');
+        initDots();
+
+        if (data.isVisual) {
+            nextBtn.innerText = "Observe Equilibrium";
+        } else {
+            nextBtn.innerText = "Continue Record";
+        }
+    }
+
+    // Controls
+    nextBtn.addEventListener('click', () => {
+        if (state.phase === 'idle') {
+            state.phase = 'rk4';
+            nextBtn.style.display = 'none';
+            animateRK4();
+        } else if (currentSlide < narrativeData.length - 1) {
+            currentSlide++;
+            updateSlide();
+            if (narrativeData[currentSlide].isVisual) {
+                state.phase = 'yinyang';
+                state.startTime = performance.now();
+                cancelAnimationFrame(animationId);
+                drawYinYang(performance.now());
+            }
+        } else {
+            overlay.classList.remove('active');
+        }
+    });
+
+    replayBtn.addEventListener('click', () => {
+        location.reload();
+    });
+
+    // Initial State
+    drawGrid();
+    initDots();
+</script>
+
+</body>
+</html>
