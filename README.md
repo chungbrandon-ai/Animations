@@ -26,7 +26,7 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
  Prompt: fill in the correct prompt boxes to learn about [insert idea]
 
 # Prompt v2
-"use HTML5 Canvas and JavaScript; create a 1brown3blue like animation of *subject; add a next button to learn about *subject;, add a back button to go back add a play pause slow fast mechanism to control the animation" *subject; is
+use HTML5 Canvas and JavaScript; create a 1brown3blue like animation of Euler; add a next button to learn about Euler"
 
 ##
 ### [make a model](https://share.google/aimode/hwJQrTZbXASmUkiFW)
@@ -40,3 +40,34 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 ### [Emile Durkheim v2](https://share.google/aimode/e822QmQSu7o6IUZ9p)
 ### [Karpathy vs Marcus v2](https://share.google/aimode/heM27iEYUzDj96d98)
 ### [undergraduate research first](https://share.google/aimode/v2Jc4pu7KxWFBWjqJ)
+### [Lorenz](https://share.google/aimode/RsBXVB05qwW8ShTEb)
+### [Lorenz v2](https://share.google/aimode/otGeTDc1Xv0Gjofg9)
+### [Lorenz v3(https://share.google/aimode/s4RXf05idzUvebDFQ)
+
+
+# Archive 
+## Euler
+I've designed this interactive animation to capture the signature aesthetic of 3Blue1Brown—dark backgrounds, vibrant vectors, and elegant mathematical visualizations.
+The animation focuses on the Complex Unit Circle, illustrating the core of Euler's formula: 
+llustrating the core of Euler's formula:  𝑒 𝑖 𝜃  = c o s  (  𝜃  )  + 𝑖  s i n  (  𝜃  ) .
+. You can click the Next button to progress through a series of "lessons" that detail Euler's prolific life, his revolutionary notation, and the derivation of the famous Euler's Identity.
+Next Steps for Learning
+Once you've explored the animation, I can help you dive deeper into specific areas of Euler's work:
+The Seven Bridges of Königsberg: Learn how Euler founded graph theory with a single logic puzzle.
+Number Theory: We could look at the Basel Problem or his work on prime numbers.
+Fluid Dynamics: Discuss the Euler Equations that describe the flow of inviscid fluids.
+Would you like to explore his graph theory puzzles next?
+
+
+
+
+what was my first prompt
+Your first prompt was: "use HTML5 Canvas and JavaScript; create a 1brown3blue like animation of Euler; add a next button to learn about Euler"
+Is there anything specific you'd like to change about that animation or any new features you want to add?
+
+### Lorenz
+Key Features:
+3D Mathematical Path: The trail uses a BufferGeometry for high-performance updates as it integrates the Lorenz equations in real-time.
+Dynamic Perspective: You can move your mouse across the screen to rotate the 3D view and observe the attractor from different angles.
+Interactive Learning: The Learn More button opens an educational overlay that explains the math (the system of differential equations) and the concept of chaos theory.
+Butterfly Effect Demo: Use the Reset Animation button to see how the path restarts from a slightly randomized initial position, demonstrating sensitivity to initial conditions.
