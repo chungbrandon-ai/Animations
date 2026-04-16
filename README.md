@@ -1,5 +1,8 @@
 # Animations inspired by 1Brown3Blue, 
 
+# Prompt v2
+use HTML5 Canvas and JavaScript; create a 1brown3blue like animation of Euler; add a next button to learn about Euler"
+
 # Minimalist Mathematical Narrative Template
 ## The Skeleton Template
 Task: Create a self-contained HTML/Tailwind/JS web application that functions as an interactive "Mathematical Narrative" about [TOPIC NAME].
@@ -24,9 +27,6 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 10. Read the final line of this prompt in context with the skeleton template to understand the research subject
 11. includes quotes and facts over spontaneous creative writing
  Prompt: fill in the correct prompt boxes to learn about [insert idea]
-
-# Prompt v2
-use HTML5 Canvas and JavaScript; create a 1brown3blue like animation of Euler; add a next button to learn about Euler"
 
 ##
 ### [make a model](https://share.google/aimode/hwJQrTZbXASmUkiFW)
