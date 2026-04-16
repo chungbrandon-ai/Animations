@@ -1,0 +1,358 @@
+# Landau-Siegel Zeros: A 3Blue1Brown Style Animation
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landau-Siegel Zeros Animation</title>
+    <style>
+        :root {
+            --bg-color: #171717;
+            --text-color: #ECE6E2;
+            --blue: #58C4DD;
+            --yellow: #FFFF00;
+            --green: #83C167;
+            --pink: #C55F73;
+            --grey: #3B3B3B;
+        }
+
+        body {
+            margin: 0;
+
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #container {
+            position: relative;
+            width: 90vw;
+            max-width: 1000px;
+            height: 70vh;
+            border: 1px solid var(--grey);
+            border-radius: 8px;
+
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        button {
+            background-color: var(--blue);
+            color: var(--bg-color);
+
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #72d6ef;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #narrative {
+
+            width: 90vw;
+            max-width: 1000px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            min-height: 100px;
+        }
+
+        .highlight-blue { color: var(--blue); font-weight: bold; }
+        .highlight-pink { color: var(--pink); font-weight: bold; }
+        .highlight-yellow { color: var(--yellow); font-weight: bold; }
+        .stage-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            opacity: 0.8;
+
+            color: var(--grey);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div id="stage-label" class="stage-label">Qi (起)</div>
+        <canvas id="mathCanvas"></canvas>
+    </div>
+
+    <div id="narrative">
+        Welcome. Let's explore the mystery of the <span class="highlight-pink">Landau-Siegel Zero</span>.
+    </div>
+
+    <div id="controls">
+        <button id="nextBtn">Next Stage</button>
+        <button id="resetBtn" style="background-color: var(--grey); color: var(--text-color);">Reset</button>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('mathCanvas');
+        const ctx = canvas.getContext('2d');
+        const narrativeText = document.getElementById('narrative');
+        const stageLabel = document.getElementById('stage-label');
+        const nextBtn = document.getElementById('nextBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        let width, height;
+        let currentStage = 0;
+        let animationFrame;
+        let time = 0;
+
+        // 3B1B Palette
+        const COLORS = {
+            bg: '#171717',
+            text: '#ECE6E2',
+            blue: '#58C4DD',
+            yellow: '#FFFF00',
+
+            green: '#83C167',
+            pink: '#C55F73',
+            grey: '#3B3B3B'
+        };
+
+        const stages = [
+            {
+                label: "Qi (起) - The Introduction",
+                text: "We begin with the <span class='highlight-blue'>Complex Plane</span>. The Riemann Hypothesis predicts all non-trivial zeros of L-functions lie on the critical line <span class='highlight-blue'>Re(s) = 1/2</span>.",
+                init: () => { /* Prevented recursive resetAnimation call */ }
+            },
+            {
+                label: "Cheng (承) - The Development",
+                text: "But there's a phantom: the <span class='highlight-pink'>Landau-Siegel Zero</span>. It's a hypothetical real zero very close to <span class='highlight-yellow'>s = 1</span>, lurking off the critical line.",
+                init: () => { }
+            },
+            {
+                label: "Zhuang (庄) - The Transition",
+                text: "The presence of this zero causes a <span class='highlight-pink'>repulsion</span>. It pushes other zeros away and distorts the distribution of primes in arithmetic progressions.",
+
+                init: () => { }
+            },
+            {
+                label: "Jie (结) - The Conclusion",
+                text: "In 2022, <span class='highlight-yellow'>Yitang Zhang</span> provided a new bound, showing these 'outlaws' are even more restricted than previously thought, bringing us closer to disproving them.",
+                init: () => { }
+            }
+        ];
+
+        function resize() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            width = rect.width;
+            height = rect.height;
+            
+            // Reset transformation to prevent cumulative scaling
+            ctx.resetTransform();
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawGrid() {
+            ctx.strokeStyle = COLORS.grey;
+            ctx.lineWidth = 1;
+            
+            const centerX = width * 0.4;
+            const centerY = height * 0.5;
+            const scale = 300;
+
+            // Axis
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+
+
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, height);
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = COLORS.text;
+            ctx.font = "16px 'Times New Roman'";
+            ctx.fillText("0", centerX - 15, centerY + 20);
+            ctx.fillText("1", centerX + scale - 5, centerY + 20);
+            ctx.fillText("1/2", centerX + scale/2 - 10, centerY + 20);
+        }
+
+        function drawCriticalStrip() {
+            const centerX = width * 0.4;
+            const centerY = height * 0.5;
+            const scale = 300;
+
+            // Critical Strip
+
+            ctx.fillStyle = 'rgba(88, 196, 221, 0.05)';
+            ctx.fillRect(centerX, 0, scale, height);
+
+            // Critical Line
+            ctx.strokeStyle = COLORS.blue;
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX + scale/2, 0);
+            ctx.lineTo(centerX + scale/2, height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function drawZeros(stage) {
+            const centerX = width * 0.4;
+            const centerY = height * 0.5;
+            const scale = 300;
+
+
+            // Regular Zeros on 1/2 line
+            ctx.fillStyle = COLORS.blue;
+            for(let i = 1; i <= 4; i++) {
+                const yOffset = i * 60;
+                ctx.beginPath();
+                ctx.arc(centerX + scale/2, centerY - yOffset, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(centerX + scale/2, centerY + yOffset, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Stage 2+: The Landau-Siegel Zero
+            if (stage >= 1) {
+                let x = centerX + scale - 15;
+                if (stage === 2) {
+                    // Repulsion movement animation
+                    x = centerX + scale - 10 + Math.sin(time * 0.05) * 5;
+                }
+
+                
+                ctx.fillStyle = COLORS.pink;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = COLORS.pink;
+                ctx.beginPath();
+                ctx.arc(x, centerY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = COLORS.pink;
+                ctx.font = "bold 16px Arial";
+                ctx.fillText("β", x - 5, centerY - 15);
+            }
+
+            // Stage 2: Repulsion arrows
+            if (stage === 2) {
+                ctx.strokeStyle = COLORS.pink;
+                ctx.lineWidth = 2;
+                for(let i = 1; i <= 3; i++) {
+
+                    const y = centerY - i * 60;
+                    drawArrow(centerX + scale - 30, y, centerX + scale/2 + 20, y);
+                }
+            }
+            
+            // Stage 3: Yitang Zhang's Bound
+            if (stage === 3) {
+                ctx.strokeStyle = COLORS.yellow;
+                ctx.lineWidth = 3;
+                const boundaryX = centerX + scale - 40;
+                ctx.beginPath();
+                ctx.moveTo(boundaryX, centerY - 50);
+                ctx.lineTo(boundaryX, centerY + 50);
+                ctx.stroke();
+                
+                ctx.fillStyle = COLORS.yellow;
+                ctx.fillText("New Bound", boundaryX - 80, centerY - 60);
+            }
+        }
+
+
+        function drawArrow(fromx, fromy, tox, toy) {
+            const headlen = 10;
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+            ctx.beginPath();
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.stroke();
+        }
+
+        function animate() {
+            time++;
+            ctx.clearRect(0, 0, width, height);
+            
+            drawGrid();
+
+            drawCriticalStrip();
+            drawZeros(currentStage);
+
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function updateUI() {
+            const stage = stages[currentStage];
+            stageLabel.textContent = stage.label;
+            narrativeText.innerHTML = stage.text;
+            if (stage.init) stage.init();
+            
+            nextBtn.textContent = currentStage === stages.length - 1 ? "Back to Start" : "Next Stage";
+        }
+
+        nextBtn.addEventListener('click', () => {
+            currentStage = (currentStage + 1) % stages.length;
+            updateUI();
+        });
+
+
+        resetBtn.addEventListener('click', () => {
+            currentStage = 0;
+            updateUI();
+        });
+
+        // Initialize
+        updateUI();
+        animate();
+    </script>
+</body>
+</html>
+
+
