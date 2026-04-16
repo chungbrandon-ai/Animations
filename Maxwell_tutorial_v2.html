@@ -1,0 +1,382 @@
+# Maxwell's Blueprint: Building the Levitator
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maxwell's Blueprint - Construction Animation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400&family=Source+Serif+Pro:ital,wght@0,400;0,700;1,400&display=swap');
+
+        :root {
+            --bg-color: #1c1c1c;
+            --math-blue: #58C4DD;
+            --math-green: #83C167;
+            --math-yellow: #FFFF00;
+            --math-red: #FF0000;
+            --text-color: #ececec;
+        }
+
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Source Serif Pro', serif;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #animation-container {
+            position: relative;
+            width: 90vw;
+            max-width: 1000px;
+            height: 60vh;
+            background: #000;
+
+            border: 1px solid #333;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: 8px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .math-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-family: 'Roboto Mono', monospace;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+
+        .narrative-box {
+            width: 90vw;
+            max-width: 1000px;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--math-blue);
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-self: flex-end;
+            margin-top: 10px;
+        }
+
+
+        .btn-nav {
+            background: transparent;
+            border: 1px solid var(--math-blue);
+            color: var(--math-blue);
+            padding: 8px 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .btn-nav:hover {
+            background: var(--math-blue);
+            color: var(--bg-color);
+        }
+
+        .btn-nav:disabled {
+            border-color: #444;
+            color: #444;
+            cursor: not-allowed;
+
+        }
+
+        .step-label {
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .formula-text {
+            font-size: 1.2rem;
+            color: var(--math-yellow);
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+
+
+    <div id="animation-container">
+        <div class="math-overlay">
+            <div id="step-title" class="formula-text">The Blueprint Phase</div>
+            <div id="step-subtitle" style="color: #aaa; font-size: 0.9rem;">From mathematics to physical force.</div>
+        </div>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="narrative-box">
+        <div id="step-indicator" class="step-label">Introduction</div>
+        <p id="narrative-text" class="text-lg italic">
+            To build a levitator, we must manifest Maxwell's 'Lines of Force' in copper and iron.
+        </p>
+        <div class="controls">
+            <button id="back-btn" class="btn-nav" disabled>Back</button>
+            <button id="next-btn" class="btn-nav">Next</button>
+        </div>
+    </div>
+
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const nextBtn = document.getElementById('next-btn');
+        const backBtn = document.getElementById('back-btn');
+        const narrativeText = document.getElementById('narrative-text');
+        const stepIndicator = document.getElementById('step-indicator');
+        const stepTitle = document.getElementById('step-title');
+        const stepSubtitle = document.getElementById('step-subtitle');
+
+        let width, height;
+        let time = 0;
+        let currentStep = 0;
+
+        const colors = {
+            blue: '#58C4DD',
+            green: '#83C167',
+            yellow: '#FFFF00',
+            red: '#FF0000',
+
+            bg: '#1c1c1c',
+            copper: '#B87333',
+            iron: '#434B4D'
+        };
+
+        const buildSteps = [
+            {
+                label: 'Phase 0: The Core',
+                title: 'Preparing the Iron Core',
+                subtitle: 'Ferromagnetic focus.',
+                text: "We begin with a steel or iron bolt. Its permeability will concentrate the magnetic flux we induce through current.",
+                draw: drawCore
+            },
+            {
+                label: 'Phase 1: The Coil',
+                title: 'Winding the Solenoid',
+                subtitle: 'N = ~550 Turns.',
+                text: "Wind 550 turns of copper wire. Maxwell's Ampere-Maxwell Law tells us that the magnetic curl is proportional to this density of turns.",
+                draw: drawWinding
+
+            },
+            {
+                label: 'Phase 2: The Eye',
+                title: 'Hall Effect Integration',
+                subtitle: 'Pin A0 (Analog Sensing).',
+                text: "Mount the sensor at the base. It will read the feedback field. Connect it to the Uno's A0 pin to begin the computational loop.",
+                draw: drawSensor
+            },
+            {
+                label: 'Phase 3: The Muscle',
+                title: 'The MOSFET & Diode',
+                subtitle: 'Pin D9 (PWM Control).',
+                text: "We use a MOSFET as a high-speed switch. A 1N4007 flyback diode protects the Uno from the solenoid's inductive kickback.",
+                draw: drawCircuitry
+            },
+            {
+                label: 'Phase 4: Completion',
+                title: 'Maxwellian Equilibrium',
+                subtitle: 'Active Levitation.',
+
+                text: "With a common ground established, the Uno R3 now maintains the object in mid-air, recalculating the 'invisible lines' 490 times per second.",
+                draw: drawFinalTest
+            }
+        ];
+
+        function resize() {
+            width = canvas.width = canvas.parentElement.clientWidth;
+            height = canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawCore() {
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Draw Bolt
+            ctx.fillStyle = colors.iron;
+
+            ctx.fillRect(cx - 100, cy - 20, 200, 40);
+            ctx.fillRect(cx + 80, cy - 30, 30, 60); // Bolt head
+            
+            // Subtle glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = colors.blue;
+            ctx.strokeStyle = colors.blue;
+            ctx.strokeRect(cx - 100, cy - 20, 200, 40);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawWinding() {
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Draw Bolt
+            ctx.fillStyle = colors.iron;
+            ctx.fillRect(cx - 100, cy - 20, 200, 40);
+            
+
+            // Draw Copper Wires (Animated)
+            ctx.strokeStyle = colors.copper;
+            ctx.lineWidth = 2;
+            const windings = Math.min(60, time * 20);
+            for(let i=0; i < windings; i++) {
+                const x = (cx - 95) + (i * 3);
+                ctx.beginPath();
+                ctx.moveTo(x, cy - 25);
+                ctx.lineTo(x + 2, cy + 25);
+                ctx.stroke();
+            }
+        }
+
+        function drawSensor() {
+            drawWinding(); // Keep previous state
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Sensor Box
+
+            ctx.fillStyle = '#111';
+            ctx.strokeStyle = colors.yellow;
+            ctx.lineWidth = 1;
+            ctx.fillRect(cx - 115, cy - 10, 10, 20);
+            ctx.strokeRect(cx - 115, cy - 10, 10, 20);
+            
+            // Wires to "Uno" (abstractly to the left)
+            ctx.strokeStyle = colors.yellow;
+            ctx.beginPath();
+            ctx.moveTo(cx - 115, cy);
+            ctx.bezierCurveTo(cx - 200, cy, cx - 200, cy + 100, cx - 300, cy + 100);
+            ctx.stroke();
+            
+            ctx.fillStyle = colors.yellow;
+            ctx.font = '10px Roboto Mono';
+            ctx.fillText("PIN A0", cx - 280, cy + 95);
+        }
+
+        function drawCircuitry() {
+
+            drawSensor();
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // MOSFET Symbol (Simplified)
+            const mx = cx;
+            const my = cy + 100;
+            ctx.strokeStyle = colors.green;
+            ctx.beginPath();
+            ctx.moveTo(mx, my - 20);
+            ctx.lineTo(mx, my + 20);
+            ctx.moveTo(mx, my);
+            ctx.lineTo(mx + 20, my);
+            ctx.stroke();
+            
+            ctx.fillText("MOSFET (PIN 9)", mx + 25, my + 5);
+            
+            // Diode across coil
+            ctx.strokeStyle = colors.red;
+
+            ctx.beginPath();
+            ctx.moveTo(cx - 50, cy - 40);
+            ctx.lineTo(cx + 50, cy - 40);
+            ctx.stroke();
+            ctx.fillText("1N4007 DIODE", cx - 30, cy - 50);
+        }
+
+        function drawFinalTest() {
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Electromagnet
+            ctx.fillStyle = colors.iron;
+            ctx.fillRect(cx - 40, cy - 80, 80, 40);
+            ctx.strokeStyle = colors.copper;
+            for(let i=0; i<15; i++) {
+                ctx.strokeRect(cx - 38 + i*5, cy - 82, 2, 44);
+            }
+            
+
+            // Levitating Magnet
+            const floatY = cy + 20 + Math.sin(time * 4) * 5;
+            ctx.fillStyle = colors.blue;
+            ctx.fillRect(cx - 20, floatY, 40, 15);
+            
+            // Flux lines
+            ctx.strokeStyle = `rgba(88, 196, 221, ${0.3 + Math.sin(time * 10) * 0.2})`;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - 20, 60, 40, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function updateUI() {
+            const step = buildSteps[currentStep];
+            stepIndicator.textContent = step.label;
+            stepTitle.textContent = step.title;
+            stepSubtitle.textContent = step.subtitle;
+            narrativeText.textContent = step.text;
+
+
+            backBtn.disabled = currentStep === 0;
+            nextBtn.textContent = currentStep === buildSteps.length - 1 ? "Start Over" : "Next Step";
+        }
+
+        nextBtn.addEventListener('click', () => {
+            currentStep = (currentStep + 1) % buildSteps.length;
+            time = 0; // Reset animation time for the new step
+            updateUI();
+        });
+
+        backBtn.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                time = 0;
+                updateUI();
+            }
+        });
+
+        function animate() {
+
+            ctx.fillStyle = colors.bg;
+            ctx.fillRect(0, 0, width, height);
+            
+            time += 0.02;
+            buildSteps[currentStep].draw();
+            
+            requestAnimationFrame(animate);
+        }
+
+        window.onload = () => {
+            updateUI();
+            animate();
+        };
+    </script>
+</body>
+</html>
+
+
