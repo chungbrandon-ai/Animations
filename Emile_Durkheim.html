@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathematical Narrative: Emile Durkheim</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@1,400;1,700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #161616;
+            color: #e5e5e5;
+            font-family: 'Roboto Mono', monospace;
+            overflow: hidden;
+        }
+        .narrative-heading {
+            font-family: 'Lora', serif;
+            font-style: italic;
+        }
+        .accent-color {
+            color: #8B5CF6;
+        }
+        .accent-border {
+            border-color: #8B5CF6;
+        }
+        .accent-bg {
+            background-color: #8B5CF6;
+        }
+        #simulation-container {
+            border: 1px solid #333;
+            transition: border-color 0.5s ease;
+        }
+        #simulation-container:hover {
+            border-color: #8B5CF6;
+        }
+        .overlay {
+            background: rgba(22, 22, 22, 0.9);
+            backdrop-filter: blur(4px);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-btn {
+            px: 1.5rem;
+            py: 0.5rem;
+            border-width: 1px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Container -->
+    <div class="relative w-full max-w-4xl">
+        
+        <!-- Header Info -->
+        <div class="mb-4 flex justify-between items-end">
+            <div>
+                <h1 class="text-xs uppercase tracking-widest opacity-50">Archive // Sociology</h1>
+                <h2 class="text-2xl narrative-heading">The Durkheimian Dynamics</h2>
+            </div>
+            <div class="text-right text-[10px] opacity-50 leading-tight">
+                NUMERICAL METHOD: RK4 SOLVER<br>
+                TOPIC: SOCIAL INTEGRATION (I) & REGULATION (R)
+            </div>
+        </div>
+
+        <!-- Simulation Section -->
+        <div id="simulation-container" class="relative bg-black aspect-video w-full rounded-sm overflow-hidden">
+            <canvas id="mathCanvas" class="w-full h-full"></canvas>
+            
+            <!-- Math Info Overlay -->
+            <div class="absolute top-4 right-4 text-[10px] bg-black/80 p-2 border border-white/10 font-mono pointer-events-none">
+                <div class="accent-color font-bold mb-1">DATA STREAM</div>
+                <div>dI/dt = k₁(I₀ - I)</div>
+                <div>dR/dt = k₂(R₀ - R)</div>
+                <div id="stats" class="mt-1 opacity-80">
+                    I: 0.00 | R: 0.00
+                </div>
+            </div>
+
+            <!-- Narrative Overlay -->
+            <div id="narrativeOverlay" class="absolute inset-0 overlay flex flex-col items-center justify-center p-8 text-center hidden">
+                <div id="chapterContent" class="max-w-xl">
+                    <h3 id="chapterTitle" class="text-3xl narrative-heading accent-color mb-4"></h3>
+                    <p id="chapterBody" class="text-sm leading-relaxed mb-8 opacity-90 min-h-[80px]"></p>
+                    
+                    <div class="flex gap-4 justify-center">
+                        <button id="prevBtn" class="px-6 py-2 border border-white/20 text-white/50 hover:border-white hover:text-white transition-all text-xs tracking-widest uppercase hidden">
+                            ← Previous
+                        </button>
+                        <button id="nextBtn" class="px-6 py-2 border accent-border accent-color hover:bg-[#8B5CF6] hover:text-black transition-all text-xs tracking-widest uppercase">
+                            Continue →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-4 text-[10px] flex justify-between opacity-30">
+            <span>FILE: DURKHEIM_1897.LOG</span>
+            <span>STABILITY: NOMINAL</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mathCanvas');
+        const ctx = canvas.getContext('2d');
+        const statsEl = document.getElementById('stats');
+        const overlay = document.getElementById('narrativeOverlay');
+        const chapterContent = document.getElementById('chapterContent');
+        const chapterTitle = document.getElementById('chapterTitle');
+        const chapterBody = document.getElementById('chapterBody');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        let width, height;
+        let isSimulating = true;
+        let currentChapter = 0;
+        let particles = [];
+        let time = 0;
+
+        // Mathematical Constants & State
+        let I = 0.2; // Integration
+        let R = 0.8; // Regulation
+        const k1 = 0.01; 
+        const k2 = 0.005;
+        const targetI = 0.5;
+        const targetR = 0.5;
+        
+        const chapters = [
+            {
+                title: "I. The Social Fact",
+                body: "In 1858, Emile Durkheim sought to transform the study of humanity into a rigorous science. He argued that society is a 'Social Fact'—an objective reality that exists independently of individuals, exerting a coercive force upon our desires and behaviors."
+            },
+            {
+                title: "II. The Two Solidarities",
+                body: "From 'Mechanical Solidarity'—the bond of shared likeness in traditional clans—to the modern 'Organic Solidarity' found in the complex division of labor. We are bound no longer by our similarities, but by our profound, functional interdependence."
+            },
+            {
+                title: "III. The Suicide Equation",
+                body: "Durkheim's 1897 study on suicide demonstrated that the most personal of acts is governed by social forces. He mapped the pathology of the soul onto two axes: Integration (our attachment to others) and Regulation (the rules that guide us)."
+            },
+            {
+                title: "IV. The Anomic Abyss",
+                body: "When social change accelerates faster than our norms can adapt, we fall into 'Anomie.' In this state of normlessness, traditional boundaries dissolve, and the individual is left adrift in a void of infinite, unfulfillable appetites."
+            },
+            {
+                title: "V. The Totem and the Void",
+                body: "At the end of all inquiry, Durkheim found that religion is society worshipping itself. The 'Collective Conscience' is the pulse of the group, a sacred lattice that holds the chaos of individual entropy at bay. Behold the duality: Social Solidarity and the Void."
+            }
+        ];
+
+        function resize() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // RK4 Numerical Integration
+        function rk4(val, target, k, dt) {
+            const f = (v) => k * (target - v);
+            const a = f(val);
+            const b = f(val + a * dt / 2);
+            const c = f(val + b * dt / 2);
+            const d = f(val + c * dt);
+            return val + (dt / 6) * (a + 2 * b + 2 * c + d);
+        }
+
+        // Particle System for Simulation
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.history = [];
+            }
+            update() {
+                const dx = (width / 2 - this.x) * (I * 0.01);
+                const dy = (height / 2 - this.y) * (R * 0.01);
+                
+                this.vx += dx;
+                this.vy += dy;
+                this.vx *= 0.95; 
+                this.vy *= 0.95;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.history.push({x: this.x, y: this.y});
+                if (this.history.length > 20) this.history.shift();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.history[0].x, this.history[0].y);
+                for(let p of this.history) {
+                    ctx.lineTo(p.x, p.y);
+                }
+                ctx.strokeStyle = `rgba(139, 92, 246, ${I})`;
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+        }
+
+        function drawFinale() {
+            const time = Date.now() * 0.001;
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)';
+            ctx.lineWidth = 1;
+            const points = 8;
+            const radius = 100 + Math.sin(time * 2) * 10;
+            
+            ctx.beginPath();
+            for(let i = 0; i < points; i++) {
+                const angle = (i / points) * Math.PI * 2;
+                const x = width/2 + Math.cos(angle) * radius;
+                const y = height/2 + Math.sin(angle) * radius;
+                ctx.lineTo(x, y);
+                
+                for(let j = 0; j < points; j++) {
+                    const angle2 = (j / points) * Math.PI * 2;
+                    const x2 = width/2 + Math.cos(angle2) * radius;
+                    const y2 = height/2 + Math.sin(angle2) * radius;
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x2, y2);
+                }
+            }
+            ctx.stroke();
+
+            for(let i = 0; i < 50; i++) {
+                const angle = time * (i * 0.1) + i;
+                const dist = 150 + Math.sin(time + i) * 50;
+                const x = width/2 + Math.cos(angle) * dist;
+                const y = height/2 + Math.sin(angle) * dist;
+                
+                ctx.fillStyle = '#8B5CF6';
+                ctx.beginPath();
+                ctx.arc(x, y, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = Array.from({length: 40}, () => new Particle());
+        }
+
+        function update() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            if (isSimulating) {
+                I = rk4(I, targetI, k1, 1);
+                R = rk4(R, targetR, k2, 1);
+                statsEl.innerText = `I: ${I.toFixed(4)} | R: ${R.toFixed(4)}`;
+
+                particles.forEach(p => {
+                    p.update();
+                    p.draw();
+                });
+
+                time++;
+                if (time > 300) {
+                    isSimulating = false;
+                    showChapter();
+                }
+            } else if (currentChapter === chapters.length - 1) {
+                drawFinale();
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        function showChapter() {
+            // Trigger simple re-fade
+            chapterContent.classList.remove('fade-in');
+            void chapterContent.offsetWidth; // trigger reflow
+            chapterContent.classList.add('fade-in');
+
+            const chapter = chapters[currentChapter];
+            chapterTitle.innerText = chapter.title;
+            chapterBody.innerText = chapter.body;
+            overlay.classList.remove('hidden');
+            
+            // Handle Navigation Visibility
+            prevBtn.classList.toggle('hidden', currentChapter === 0);
+            
+            if (currentChapter === chapters.length - 1) {
+                nextBtn.innerText = "End Archive";
+            } else {
+                nextBtn.innerText = "Continue →";
+            }
+        }
+
+        nextBtn.onclick = () => {
+            if (currentChapter < chapters.length - 1) {
+                currentChapter++;
+                showChapter();
+            } else {
+                overlay.classList.add('hidden');
+            }
+        };
+
+        prevBtn.onclick = () => {
+            if (currentChapter > 0) {
+                currentChapter--;
+                showChapter();
+            }
+        };
+
+        window.onload = () => {
+            initParticles();
+            update();
+        };
+    </script>
+</body>
+</html>
