@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lorenz Attractor Animation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --accent-color: #e2b714; /* 3B1B Gold */
+            --text-color: #ffffff;
+            --overlay-bg: rgba(0, 0, 0, 0.85);
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            max-width: 600px;
+        }
+
+        h1 {
+            font-weight: 300;
+            font-size: 2.5rem;
+            margin: 0;
+            color: var(--accent-color);
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            pointer-events: auto;
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        button {
+            background: transparent;
+            border: 2px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 12px 24px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: var(--accent-color);
+            color: var(--bg-color);
+        }
+
+        #info-card {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            background: var(--overlay-bg);
+            border-left: 4px solid var(--accent-color);
+            padding: 30px;
+            pointer-events: auto;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            line-height: 1.6;
+        }
+
+        #info-card h2 {
+            margin-top: 0;
+            color: var(--accent-color);
+        }
+
+        .math {
+            font-style: italic;
+            font-family: 'Times New Roman', Times, serif;
+            display: block;
+            margin: 15px 0;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .close-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #stats {
+            font-family: monospace;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="header">
+            <h1>The Lorenz System</h1>
+            <div id="stats">x: 0.00 | y: 0.00 | z: 0.00</div>
+        </div>
+
+        <div id="info-card">
+            <h2 id="slide-title">What is this?</h2>
+            <p id="slide-content">The Lorenz system is a set of differential equations first studied by Edward Lorenz in 1963. It was originally derived from a simplified model of atmospheric convection.</p>
+            <div id="math-block" class="math">
+                dx/dt = σ(y - x)<br>
+                dy/dt = x(ρ - z) - y<br>
+                dz/dt = xy - βz
+            </div>
+            <button class="close-btn" onclick="nextSlide()">Continue</button>
+        </div>
+
+        <div class="controls">
+            <button onclick="toggleInfo()">Learn More</button>
+            <button onclick="resetPath()">Reset Animation</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SIGMA = 10;
+        const RHO = 28;
+        const BETA = 8 / 3;
+        const DT = 0.01;
+        const MAX_POINTS = 10000;
+
+        let scene, camera, renderer;
+        let line, geometry;
+        let points = [];
+        let x = 0.1, y = 0, z = 0;
+        let isPaused = false;
+        
+        // Interaction state
+        let mouseX = 0, mouseY = 0;
+        let targetRotationX = 0.5, targetRotationY = 0.5;
+        let windowHalfX = window.innerWidth / 2;
+        let windowHalfY = window.innerHeight / 2;
+
+        // Info Card Content
+        const slides = [
+            {
+                title: "The Butterfly Effect",
+                content: "This shape is a 'strange attractor'. Even though the equations are deterministic, the system is highly sensitive to initial conditions.",
+                math: "Small change in (x₀, y₀, z₀) → Huge divergence"
+            },
+            {
+                title: "Chaos Theory",
+                content: "The path never intersects itself and never repeats the same loop twice. It is trapped in a finite space but has an infinite length.",
+                math: "Fractal Dimension ≈ 2.06"
+            },
+            {
+                title: "Deterministic Non-Periodicity",
+                content: "Edward Lorenz discovered that complex, non-periodic behavior can arise from very simple nonlinear rules.",
+                math: "ρ = 28 (The chaotic regime)"
+            }
+        ];
+        let currentSlide = 0;
+
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.z = 100;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Axes with labels (3B1B style)
+            createAxes();
+
+            // Lorenz Path Setup
+            geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(MAX_POINTS * 3);
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0xe2b714, 
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            line = new THREE.Line(geometry, material);
+            scene.add(line);
+
+            // Event Listeners
+            document.addEventListener('mousemove', onDocumentMouseMove);
+            window.addEventListener('resize', onWindowResize);
+            
+            animate();
+        }
+
+        function createAxes() {
+            const axesHelper = new THREE.Group();
+            
+            // X, Y, Z Lines
+            const length = 40;
+            const matX = new THREE.LineBasicMaterial({ color: 0x555555 });
+            
+            const createAxis = (start, end) => {
+                const geo = new THREE.BufferGeometry().setFromPoints([start, end]);
+                return new THREE.Line(geo, matX);
+            };
+
+            axesHelper.add(createAxis(new THREE.Vector3(-length, 0, 0), new THREE.Vector3(length, 0, 0)));
+            axesHelper.add(createAxis(new THREE.Vector3(0, -length, 0), new THREE.Vector3(0, length, 0)));
+            axesHelper.add(createAxis(new THREE.Vector3(0, 0, -length), new THREE.Vector3(0, 0, length)));
+
+            scene.add(axesHelper);
+        }
+
+        function updateLorenz() {
+            if (isPaused) return;
+
+            // Lorenz Equations
+            const dx = SIGMA * (y - x) * DT;
+            const dy = (x * (RHO - z) - y) * DT;
+            const dz = (x * y - BETA * z) * DT;
+
+            x += dx;
+            y += dy;
+            z += dz;
+
+            points.push(new THREE.Vector3(x, y, z - 25)); // Shift Z for centering
+
+            if (points.length > MAX_POINTS) {
+                points.shift();
+            }
+
+            // Update stats UI
+            document.getElementById('stats').innerText = `x: ${x.toFixed(2)} | y: ${y.toFixed(2)} | z: ${z.toFixed(2)}`;
+
+            // Update Geometry
+            const positions = line.geometry.attributes.position.array;
+            for (let i = 0; i < points.length; i++) {
+                positions[i * 3] = points[i].x;
+                positions[i * 3 + 1] = points[i].y;
+                positions[i * 3 + 2] = points[i].z;
+            }
+            line.geometry.setDrawRange(0, points.length);
+            line.geometry.attributes.position.needsUpdate = true;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            updateLorenz();
+
+            // Smooth rotation based on mouse
+            targetRotationX += (mouseX - targetRotationX) * 0.05;
+            targetRotationY += (mouseY - targetRotationY) * 0.05;
+
+            scene.rotation.y = targetRotationX;
+            scene.rotation.x = targetRotationY;
+
+            renderer.render(scene, camera);
+        }
+
+        // --- INTERACTION LOGIC ---
+
+        function onDocumentMouseMove(event) {
+            mouseX = (event.clientX - windowHalfX) / windowHalfX;
+            mouseY = (event.clientY - windowHalfY) / windowHalfY;
+        }
+
+        function onWindowResize() {
+            windowHalfX = window.innerWidth / 2;
+            windowHalfY = window.innerHeight / 2;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleInfo() {
+            const card = document.getElementById('info-card');
+            const isShowing = card.style.display === 'block';
+            card.style.display = isShowing ? 'none' : 'block';
+            isPaused = !isShowing;
+        }
+
+        function nextSlide() {
+            if (currentSlide >= slides.length) {
+                toggleInfo();
+                currentSlide = 0;
+                return;
+            }
+
+            const slide = slides[currentSlide];
+            document.getElementById('slide-title').innerText = slide.title;
+            document.getElementById('slide-content').innerText = slide.content;
+            document.getElementById('math-block').innerText = slide.math;
+            
+            currentSlide++;
+        }
+
+        function resetPath() {
+            points = [];
+            x = 0.1 + Math.random() * 0.1; // Randomize slightly to show sensitivity
+            y = 0;
+            z = 0;
+            line.geometry.setDrawRange(0, 0);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
