@@ -25,10 +25,10 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 11. includes quotes and facts over spontaneous creative writing
 
 ##
-[make a model](https://share.google/aimode/hwJQrTZbXASmUkiFW)
-[Runge_Kutta](https://share.google/aimode/JTtljGin54WRIISct)
-[Runge Kutta v2](https://share.google/aimode/26OeuZOnEwJqvpcuq)
-[Euler](https://share.google/aimode/AVdF882n7oDu8d59r)
-[Hodgkin-Huxley Model](https://share.google/aimode/AVdF882n7oDu8d59r)
-[Emile Durkheim](https://share.google/aimode/zWsXrZehoneSB4EnY)
-[Emile Durkheim v2](https://share.google/aimode/e822QmQSu7o6IUZ9p)
+### [make a model](https://share.google/aimode/hwJQrTZbXASmUkiFW)
+### [Runge_Kutta](https://share.google/aimode/JTtljGin54WRIISct)
+### [Runge Kutta v2](https://share.google/aimode/26OeuZOnEwJqvpcuq)
+### [Euler](https://share.google/aimode/AVdF882n7oDu8d59r)
+### [Hodgkin-Huxley Model](https://share.google/aimode/AVdF882n7oDu8d59r)
+### [Emile Durkheim](https://share.google/aimode/zWsXrZehoneSB4EnY)
+### [Emile Durkheim v2](https://share.google/aimode/e822QmQSu7o6IUZ9p)
