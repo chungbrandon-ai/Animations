@@ -1,0 +1,318 @@
+# Tarde's Social Diffusion Animation
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            /* 3Blue1Brown Inspired Palette */
+            --bg-color: #1c1c1c;
+            --blue-main: #556B8E;
+            --amber: #F7C548;
+            --text-white: #FAF9F6;
+            --accent-green: #8AC926;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 90vw;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        canvas {
+
+            background: #121212;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            width: 100%;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        button {
+            background: transparent;
+            border: 2px solid var(--blue-main);
+            color: var(--blue-main);
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: var(--blue-main);
+            color: var(--bg-color);
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(28, 28, 28, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+
+            align-items: center;
+            padding: 40px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #info-panel h2 { color: var(--amber); }
+        #info-panel p { line-height: 1.6; max-width: 600px; }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--amber);
+        }
+
+        .label {
+
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--blue-main);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div style="position: relative;">
+        <span class="label">Laws of Imitation</span>
+        <canvas id="simCanvas"></canvas>
+    </div>
+    
+
+    <div style="position: relative;">
+        <span class="label">S-Curve Diffusion</span>
+        <canvas id="graphCanvas"></canvas>
+    </div>
+
+    <div class="stats">
+        <span id="popCount">Population: 0</span>
+        <span id="imitationRate">Imitation: 0%</span>
+    </div>
+
+    <div class="controls">
+        <button onclick="resetSim()">Reset Animation</button>
+        <button onclick="toggleInfo()">Next: Who is Gabriel Tarde?</button>
+    </div>
+
+    <div id="info-panel">
+        <h2>Gabriel Tarde (1843–1904)</h2>
+        <p>
+            A French sociologist and criminologist who argued that society is not a collective entity, 
+
+            but an aggregate of individuals influencing one another through <strong>imitation</strong>.
+        </p>
+        <p>
+            His "Laws of Imitation" (1890) proposed that new ideas spread through three paths: 
+            close contact, imitation of superiors, and replacement of old habits. This process 
+            creates the classic <strong>S-curve</strong> seen in modern innovation diffusion theory.
+        </p>
+        <button onclick="toggleInfo()">Back to Animation</button>
+    </div>
+</div>
+
+<script>
+    const simCanvas = document.getElementById('simCanvas');
+    const simCtx = simCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const graphCtx = graphCanvas.getContext('2d');
+    const infoPanel = document.getElementById('info-panel');
+
+    // Configuration
+
+    const PARTICLE_COUNT = 80;
+    const RADIUS = 6;
+    const INFECT_DIST = 25;
+    let particles = [];
+    let history = [];
+    let frame = 0;
+
+    // Colors
+    const COLOR_BASE = '#556B8E';
+    const COLOR_INFECTED = '#F7C548';
+
+    class Particle {
+        constructor(isInfected = false) {
+            this.x = Math.random() * simCanvas.width;
+            this.y = Math.random() * simCanvas.height;
+            this.vx = (Math.random() - 0.5) * 2;
+            this.vy = (Math.random() - 0.5) * 2;
+            this.infected = isInfected;
+        }
+
+
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+
+            // Bounce
+            if (this.x < 0 || this.x > simCanvas.width) this.vx *= -1;
+            if (this.y < 0 || this.y > simCanvas.height) this.vy *= -1;
+        }
+
+        draw() {
+            simCtx.beginPath();
+            simCtx.arc(this.x, this.y, RADIUS, 0, Math.PI * 2);
+            simCtx.fillStyle = this.infected ? COLOR_INFECTED : COLOR_BASE;
+            simCtx.shadowBlur = this.infected ? 15 : 0;
+            simCtx.shadowColor = COLOR_INFECTED;
+            simCtx.fill();
+            simCtx.closePath();
+            simCtx.shadowBlur = 0;
+        }
+
+    }
+
+    function init() {
+        // Handle High DPI
+        const dpr = window.devicePixelRatio || 1;
+        simCanvas.width = 800 * dpr;
+        simCanvas.height = 300 * dpr;
+        graphCanvas.width = 800 * dpr;
+        graphCanvas.height = 150 * dpr;
+        simCtx.scale(dpr, dpr);
+        graphCtx.scale(dpr, dpr);
+
+        resetSim();
+        animate();
+    }
+
+    function resetSim() {
+        particles = [];
+        history = [];
+
+        frame = 0;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            particles.push(new Particle(i === 0)); // Start with one "inventor"
+        }
+    }
+
+    function toggleInfo() {
+        infoPanel.style.display = infoPanel.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function animate() {
+        simCtx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+        
+        let infectedCount = 0;
+
+        // Update and check contact (Tarde's Law of Close Contact)
+        particles.forEach((p, i) => {
+            p.update();
+            if (p.infected) {
+
+                infectedCount++;
+                // Check proximity to others
+                particles.forEach((other) => {
+                    if (!other.infected) {
+                        const dist = Math.hypot(p.x - other.x, p.y - other.y);
+                        if (dist < INFECT_DIST) {
+                            other.infected = true;
+                        }
+                    }
+                });
+            }
+            p.draw();
+        });
+
+        // Update UI
+        document.getElementById('popCount').innerText = `Total Population: ${PARTICLE_COUNT}`;
+        const percent = Math.round((infectedCount / PARTICLE_COUNT) * 100);
+        document.getElementById('imitationRate').innerText = `Imitation: ${percent}%`;
+
+
+        // Record history for graph
+        if (frame % 5 === 0) {
+            history.push(infectedCount);
+        }
+
+        drawGraph();
+
+        frame++;
+        requestAnimationFrame(animate);
+    }
+
+    function drawGraph() {
+        graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+        
+        // Draw Axes
+        graphCtx.strokeStyle = '#444';
+        graphCtx.beginPath();
+        graphCtx.moveTo(40, 10);
+        graphCtx.lineTo(40, 130);
+
+        graphCtx.lineTo(780, 130);
+        graphCtx.stroke();
+
+        if (history.length < 2) return;
+
+        // Draw S-Curve
+        graphCtx.strokeStyle = COLOR_INFECTED;
+        graphCtx.lineWidth = 3;
+        graphCtx.beginPath();
+        
+        const spacing = (740) / Math.max(100, history.length);
+        
+        history.forEach((val, i) => {
+            const x = 40 + i * spacing;
+            const y = 130 - (val / PARTICLE_COUNT) * 110;
+            if (i === 0) graphCtx.moveTo(x, y);
+            else graphCtx.lineTo(x, y);
+        });
+        graphCtx.stroke();
+
+
+        // Label
+        graphCtx.fillStyle = '#888';
+        graphCtx.font = '10px Arial';
+        graphCtx.fillText("TIME", 750, 145);
+        graphCtx.fillText("ADOPTION", 5, 20);
+    }
+
+    window.onload = init;
+</script>
+
+</body>
+</html>
+
+
