@@ -24,6 +24,8 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 10. Read the final line of this prompt in context with the skeleton template to understand the research subject
 11. includes quotes and facts over spontaneous creative writing
 
+## Prompt: fill in the correct prompt boxes to learn about [insert idea]
+
 ##
 ### [make a model](https://share.google/aimode/hwJQrTZbXASmUkiFW)
 ### [Runge_Kutta](https://share.google/aimode/JTtljGin54WRIISct)
