@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Euler's Animation</title>
+    <style>
+        /* 3Blue1Brown Style Palette */
+        :root {
+            --bg-color: #111111;
+            --axis-color: #888888;
+            --euler-blue: #58c4dd;
+            --euler-yellow: #ffff00;
+            --euler-pink: #ee82ee;
+            --text-color: #ececec;
+            --accent-color: #ff8c00;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Palatino', 'Georgia', serif;
+            color: var(--text-color);
+        }
+
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Information Overlay */
+        #overlay {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            max-width: 400px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #overlay h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            color: var(--euler-blue);
+            font-weight: normal;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.8s ease;
+        }
+
+        #overlay p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-top: 15px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.8s ease 0.2s;
+        }
+
+        #overlay.active h1, #overlay.active p {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Controls */
+        #controls {
+            position: absolute;
+            bottom: 50px;
+            right: 50px;
+            z-index: 20;
+        }
+
+        button {
+            background: none;
+            border: 2px solid var(--euler-blue);
+            color: var(--euler-blue);
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: rgba(88, 196, 221, 0.1);
+            box-shadow: 0 0 15px rgba(88, 196, 221, 0.3);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        /* Math Typography */
+        .math {
+            font-style: italic;
+            font-family: 'Times New Roman', Times, serif;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div id="overlay" class="active">
+        <h1 id="title">Leonhard Euler</h1>
+        <p id="description">Explore the beauty of the complex plane and the formula that bridges algebra and trigonometry.</p>
+    </div>
+
+    <canvas id="mathCanvas"></canvas>
+
+    <div id="controls">
+        <button id="nextBtn">Learn More &rarr;</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('mathCanvas');
+    const ctx = canvas.getContext('2d');
+    const nextBtn = document.getElementById('nextBtn');
+    const titleEl = document.getElementById('title');
+    const descEl = document.getElementById('description');
+    const overlay = document.getElementById('overlay');
+
+    // Global state
+    let step = 0;
+    let time = 0;
+    let theta = 0;
+    let targetTheta = 0;
+    let isAnimating = true;
+    
+    // Animation constants
+    const STEPS = [
+        {
+            title: "The Complex Plane",
+            desc: "Euler envisioned numbers not just on a line, but in a plane where the vertical axis represents 'i', the imaginary unit.",
+            action: () => { targetTheta = Math.PI / 4; }
+        },
+        {
+            title: "Rotation as Power",
+            desc: "Multiplying by e raised to an imaginary power performs a rotation. This connection is the heartbeat of modern physics.",
+            action: () => { isAnimating = true; }
+        },
+        {
+            title: "Standard Notation",
+            desc: "We owe Euler our math language: he popularized π, e, i, Σ, and the function notation f(x).",
+            action: () => { targetTheta = Math.PI * 0.75; }
+        },
+        {
+            title: "Euler's Identity",
+            desc: "When we rotate by exactly π radians (180°), we reach -1. Thus, e^(iπ) + 1 = 0. Often called the most beautiful equation.",
+            action: () => { targetTheta = Math.PI; isAnimating = false; }
+        },
+        {
+            title: "A Prolific Legacy",
+            desc: "Euler published over 800 papers, continuing even after going blind. His mind remains the foundation of calculus and graph theory.",
+            action: () => { isAnimating = true; }
+        }
+    ];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Mapping math coords to screen
+    const scale = 200;
+    function toScreen(x, y) {
+        return {
+            x: canvas.width / 2 + x * scale,
+            y: canvas.height / 2 - y * scale
+        };
+    }
+
+    function drawGrid() {
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        
+        // Draw grid lines
+        for (let i = -10; i <= 10; i++) {
+            const startX = toScreen(i, -10);
+            const endX = toScreen(i, 10);
+            ctx.beginPath();
+            ctx.moveTo(startX.x, startX.y);
+            ctx.lineTo(endX.x, endX.y);
+            ctx.stroke();
+
+            const startY = toScreen(-10, i);
+            const endY = toScreen(10, i);
+            ctx.beginPath();
+            ctx.moveTo(startY.x, startY.y);
+            ctx.lineTo(endY.x, endY.y);
+            ctx.stroke();
+        }
+
+        // Draw Axes
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 2;
+        const origin = toScreen(0, 0);
+        
+        // Horizontal
+        ctx.beginPath();
+        ctx.moveTo(0, origin.y);
+        ctx.lineTo(canvas.width, origin.y);
+        ctx.stroke();
+
+        // Vertical
+        ctx.beginPath();
+        ctx.moveTo(origin.x, 0);
+        ctx.lineTo(origin.x, canvas.height);
+        ctx.stroke();
+
+        // Axis Labels
+        ctx.fillStyle = '#666';
+        ctx.font = '16px Palatino';
+        ctx.fillText('Real', canvas.width - 60, origin.y - 10);
+        ctx.fillText('Imaginary (i)', origin.x + 10, 30);
+    }
+
+    function drawCircle() {
+        const origin = toScreen(0, 0);
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(origin.x, origin.y, scale, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    function drawVector(angle) {
+        const origin = toScreen(0, 0);
+        const x = Math.cos(angle);
+        const y = Math.sin(angle);
+        const end = toScreen(x, y);
+
+        // Sin (Opposite) - Imaginary component
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = '#ee82ee';
+        ctx.beginPath();
+        ctx.moveTo(end.x, origin.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Cos (Adjacent) - Real component
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(end.x, origin.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Main Vector (Hypotenuse)
+        ctx.strokeStyle = '#58c4dd';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        // Dot at end
+        ctx.fillStyle = '#58c4dd';
+        ctx.beginPath();
+        ctx.arc(end.x, end.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Labeling Components
+        ctx.font = '20px Palatino';
+        ctx.fillStyle = '#ffff00';
+        ctx.fillText('cos(θ)', origin.x + (x * scale) / 2 - 20, origin.y + 30);
+        
+        ctx.fillStyle = '#ee82ee';
+        ctx.fillText('i sin(θ)', end.x + 15, origin.y - (y * scale) / 2);
+
+        // Formula Overlay on Canvas
+        ctx.fillStyle = '#ececec';
+        ctx.font = 'italic 32px Times New Roman';
+        ctx.fillText('e', origin.x + 40, origin.y - 120);
+        ctx.font = 'italic 18px Times New Roman';
+        ctx.fillText('i θ', origin.x + 55, origin.y - 145);
+        ctx.font = 'italic 32px Times New Roman';
+        ctx.fillText('= cos(θ) + i sin(θ)', origin.x + 85, origin.y - 120);
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        drawGrid();
+        drawCircle();
+
+        if (isAnimating) {
+            theta += 0.01;
+        } else {
+            // Smoothly move to target angle
+            const diff = targetTheta - theta;
+            theta += diff * 0.05;
+        }
+
+        drawVector(theta);
+
+        requestAnimationFrame(animate);
+    }
+
+    nextBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        
+        setTimeout(() => {
+            const data = STEPS[step];
+            titleEl.innerText = data.title;
+            descEl.innerText = data.desc;
+            data.action();
+            
+            overlay.classList.add('active');
+            
+            step = (step + 1) % STEPS.length;
+            if (step === 0) {
+                nextBtn.innerText = "Restart Journey";
+            } else {
+                nextBtn.innerText = "Next Step";
+            }
+        }, 800);
+    });
+
+    // Initialize animation loop
+    window.onload = () => {
+        animate();
+    };
+</script>
+
+</body>
+</html>
