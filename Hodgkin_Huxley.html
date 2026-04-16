@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mathematical Narrative: Hodgkin-Huxley</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@1,400;1,700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #161616;
+            --accent-color: #00F5FF; /* Electric Cyan */
+            --text-main: #E0E0E0;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Roboto Mono', monospace;
+            overflow: hidden;
+            margin: 0;
+        }
+        .narrative-heading {
+            font-family: 'Lora', serif;
+            font-style: italic;
+        }
+        #app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        canvas {
+            border: 1px solid rgba(0, 245, 255, 0.3);
+            max-width: 90vw;
+            max-height: 60vh;
+            background: #000;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(22, 22, 22, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease;
+            z-index: 50;
+            padding: 2rem;
+            text-align: center;
+        }
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .math-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--accent-color);
+            padding: 10px;
+            font-size: 0.75rem;
+            color: var(--accent-color);
+            pointer-events: none;
+        }
+        .btn-accent {
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 0.5rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: transparent;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+        }
+        .btn-accent:hover {
+            background: var(--accent-color);
+            color: #000;
+        }
+        .btn-ghost {
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+            padding: 0.5rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: transparent;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+        }
+        .btn-ghost:hover {
+            border-color: #fff;
+            color: #fff;
+        }
+        .chapter-content {
+            max-width: 600px;
+        }
+        #sim-controls {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 60;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <h1 class="text-xs uppercase tracking-widest opacity-50 mb-4">Neural Archive // Hodgkin-Huxley Model</h1>
+    
+    <div id="canvas-wrapper" class="relative">
+        <canvas id="simulationCanvas"></canvas>
+        <div class="math-info" id="realtimeData">
+            V: -65.00mV<br>
+            t: 0.00ms
+        </div>
+        
+        <!-- Controls during simulation -->
+        <div id="sim-controls" class="hidden">
+            <button id="skipBtn" class="btn-ghost">Skip Animation</button>
+            <button id="restartSimBtn" class="btn-ghost">Restart Pulse</button>
+        </div>
+    </div>
+
+    <!-- Narrative Overlay -->
+    <div id="narrativeOverlay" class="overlay">
+        <div class="chapter-content">
+            <h2 id="chapterTitle" class="narrative-heading text-3xl mb-4 text-cyan-400">Chapter I: The Giant Axon</h2>
+            <p id="chapterText" class="text-sm leading-relaxed mb-6 opacity-80">
+                In 1939, on the coast of Plymouth, two men stood over a giant squid axon. They sought the spark of life itself.
+            </p>
+            <div class="flex justify-center gap-4">
+                <button id="backBtn" class="btn-ghost hidden">Back</button>
+                <button id="nextBtn" class="btn-accent">Initialize Sequence</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- MATHEMATICAL CORE ---
+    const C = 1.0;
+    const gNa = 120.0;
+    const gK = 36.0;
+    const gL = 0.3;
+    const ENa = 50.0;
+    const EK = -77.0;
+    const EL = -54.4;
+
+    let V = -65.0;
+    let m = 0.0529;
+    let h = 0.5961;
+    let n = 0.3177;
+    let t = 0;
+    const dt = 0.05;
+
+    let isSimulating = false;
+    let dataPoints = [];
+    const maxPoints = 400;
+
+    const alphaM = (v) => 0.1 * (v + 40.0) / (1.0 - Math.exp(-(v + 40.0) / 10.0));
+    const betaM = (v) => 4.0 * Math.exp(-(v + 65.0) / 18.0);
+    const alphaH = (v) => 0.07 * Math.exp(-(v + 65.0) / 20.0);
+    const betaH = (v) => 1.0 / (1.0 + Math.exp(-(v + 35.0) / 10.0));
+    const alphaN = (v) => 0.01 * (v + 55.0) / (1.0 - Math.exp(-(v + 55.0) / 10.0));
+    const betaN = (v) => 0.125 * Math.exp(-(v + 65.0) / 80.0);
+
+    function step(I_ext) {
+        const dV = (I_ext - (gNa * Math.pow(m, 3) * h * (V - ENa)) - (gK * Math.pow(n, 4) * (V - EK)) - (gL * (V - EL))) / C;
+        const dm = alphaM(V) * (1 - m) - betaM(V) * m;
+        const dh = alphaH(V) * (1 - h) - betaH(V) * h;
+        const dn = alphaN(V) * (1 - n) - betaN(V) * n;
+
+        V += dV * dt;
+        m += dm * dt;
+        h += dh * dt;
+        n += dn * dt;
+        t += dt;
+
+        dataPoints.push({x: t, y: V});
+        if (dataPoints.length > maxPoints) dataPoints.shift();
+    }
+
+    // --- VISUALIZATION ---
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+    const dataDisplay = document.getElementById('realtimeData');
+
+    function resize() {
+        canvas.width = window.innerWidth * 0.8;
+        canvas.height = window.innerHeight * 0.5;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 0.5;
+        for(let i=0; i<canvas.width; i+=50) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        }
+        for(let j=0; j<canvas.height; j+=50) {
+            ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+        }
+
+        if (dataPoints.length > 1) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#00F5FF';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00F5FF';
+            dataPoints.forEach((p, i) => {
+                const px = (i / maxPoints) * canvas.width;
+                const py = canvas.height/2 - (p.y + 20) * 2;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            });
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        dataDisplay.innerHTML = `V: ${V.toFixed(2)}mV<br>t: ${t.toFixed(2)}ms`;
+    }
+
+    // --- NARRATIVE SYSTEM ---
+    const chapters = [
+        {
+            title: "Chapter I: The Giant Axon",
+            text: "In 1939, Alan Hodgkin and Andrew Huxley worked at the Marine Biological Laboratory. They discovered that during an impulse, the cell's potential didn't just vanish—it overshot zero. It became positive. But history intervened.",
+            button: "War Declared"
+        },
+        {
+            title: "Chapter II: The Interruption",
+            text: "World War II scattered them. Hodgkin moved to radar development; Huxley focused on gunnery targeting. Biology was paused for physics, yet their minds remained on the 'feedback' loops of the nerve.",
+            button: "Resume Research"
+        },
+        {
+            title: "Chapter III: The Calculation",
+            text: "1952. Returning to Cambridge, they faced the math. Without modern computers, they used a mechanical hand-crank calculator. Thousands of turns. Brute force arithmetic to solve the gates of sodium and potassium.",
+            button: "Run Simulation"
+        },
+        {
+            title: "Chapter IV: The Mechanism",
+            text: "They succeeded. A quantitative map of life. Every thought, every movement, reduced to ionic permeability. In 1963, they accepted the Nobel Prize for turning biological mystery into deterministic circuitry.",
+            button: "Final Contemplation"
+        },
+        {
+            title: "Final Chapter: The Ghost in the Circuit",
+            text: "We are the interplay between the vessel and the spark. The Soma holds the structure; the signal carries the self. Is consciousness the result of the equations, or the thing the equations try to catch?",
+            button: "Observe Dualism",
+            isFinale: true
+        }
+    ];
+
+    let currentChapter = 0;
+    const overlay = document.getElementById('narrativeOverlay');
+    const nextBtn = document.getElementById('nextBtn');
+    const backBtn = document.getElementById('backBtn');
+    const simControls = document.getElementById('sim-controls');
+    const skipBtn = document.getElementById('skipBtn');
+    const restartSimBtn = document.getElementById('restartSimBtn');
+
+    nextBtn.onclick = () => {
+        if (currentChapter === 2) {
+            startSimulation();
+        } else if (chapters[currentChapter].isFinale) {
+            triggerFinale();
+        } else {
+            currentChapter++;
+            updateChapter();
+        }
+    };
+
+    backBtn.onclick = () => {
+        if (currentChapter > 0) {
+            currentChapter--;
+            updateChapter();
+        }
+    };
+
+    function updateChapter() {
+        const c = chapters[currentChapter];
+        document.getElementById('chapterTitle').innerText = c.title;
+        document.getElementById('chapterText').innerText = c.text;
+        nextBtn.innerText = c.button;
+        
+        // Toggle Back button visibility
+        if (currentChapter === 0) backBtn.classList.add('hidden');
+        else backBtn.classList.remove('hidden');
+
+        overlay.classList.remove('hidden');
+        simControls.classList.add('hidden');
+    }
+
+    let frames = 0;
+    let animationId;
+
+    function resetModel() {
+        V = -65.0; m = 0.0529; h = 0.5961; n = 0.3177; t = 0;
+        dataPoints = [];
+        frames = 0;
+    }
+
+    function startSimulation() {
+        overlay.classList.add('hidden');
+        simControls.classList.remove('hidden');
+        resetModel();
+        isSimulating = true;
+        
+        function loop() {
+            if (!isSimulating) return;
+            const current = (frames > 50 && frames < 60) || (frames > 200 && frames < 210) ? 15.0 : 0;
+            step(current);
+            draw();
+            frames++;
+            
+            if (frames < 350) {
+                animationId = requestAnimationFrame(loop);
+            } else {
+                finishSimulation();
+            }
+        }
+        loop();
+    }
+
+    function finishSimulation() {
+        isSimulating = false;
+        cancelAnimationFrame(animationId);
+        currentChapter++;
+        updateChapter();
+    }
+
+    // Skip Simulation
+    skipBtn.onclick = () => {
+        finishSimulation();
+    };
+
+    // Restart Current Animation
+    restartSimBtn.onclick = () => {
+        cancelAnimationFrame(animationId);
+        startSimulation();
+    };
+
+    // --- FINALE VISUALIZATION ---
+    function triggerFinale() {
+        simControls.classList.add('hidden');
+        overlay.innerHTML = `
+            <div class="chapter-content">
+                <h2 class="narrative-heading text-3xl mb-4 text-cyan-400">The Ghost in the Circuit</h2>
+                <canvas id="finaleCanvas" style="width:300px; height:300px; background:transparent; border:none;"></canvas>
+                <p class="text-xs mt-4 opacity-60">Determinism (The Vessel) vs. Vitalism (The Spark)</p>
+                <div class="flex justify-center gap-4 mt-6">
+                     <button onclick="location.reload()" class="btn-ghost">Restart Narrative</button>
+                </div>
+            </div>
+        `;
+        
+        const fCanvas = document.getElementById('finaleCanvas');
+        const fCtx = fCanvas.getContext('2d');
+        fCanvas.width = 300; fCanvas.height = 300;
+
+        function animateFinale() {
+            fCtx.clearRect(0, 0, 300, 300);
+            const time = Date.now() * 0.002;
+            fCtx.beginPath();
+            fCtx.arc(150, 150, 60 + Math.sin(time) * 5, 0, Math.PI * 2);
+            fCtx.strokeStyle = 'rgba(255,255,255,0.2)';
+            fCtx.setLineDash([5, 5]);
+            fCtx.stroke();
+            
+            fCtx.setLineDash([]);
+            fCtx.beginPath();
+            fCtx.moveTo(150, 150);
+            for(let i=0; i<10; i++) {
+                const angle = (i/10) * Math.PI * 2 + time;
+                const len = 40 + Math.random() * 60;
+                fCtx.lineTo(150 + Math.cos(angle)*len, 150 + Math.sin(angle)*len);
+            }
+            fCtx.strokeStyle = '#00F5FF';
+            fCtx.stroke();
+            requestAnimationFrame(animateFinale);
+        }
+        animateFinale();
+    }
+
+    window.onload = () => {
+        updateChapter();
+        draw();
+    };
+</script>
+
+</body>
+</html>
