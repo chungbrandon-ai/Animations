@@ -1,0 +1,335 @@
+# Karpathy's Neural Narrative: A 3Blue1Brown Visualization
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karpathy Narrative Animation</title>
+    <style>
+        :root {
+            --bg-color: #1c1c1c;
+            --cream: #ece6ff;
+            --blue: #87c2a5;
+            --green: #52ad9f;
+            --purple: #96231a;
+            --text-main: #ffffea;
+            --border: #444;
+        }
+
+        body {
+            margin: 0;
+
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 90%;
+            max-width: 900px;
+            background: #111;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+
+            border: 1px solid var(--border);
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            background-color: var(--bg-color);
+            border-bottom: 1px solid var(--border);
+            height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #narrative-section {
+            padding: 30px;
+
+            background: #181818;
+            position: relative;
+            min-height: 160px;
+        }
+
+        .scene-indicator {
+            position: absolute;
+            top: 15px;
+            left: 30px;
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            margin: 10px 0 10px 0;
+            color: var(--blue);
+            font-weight: 300;
+
+            letter-spacing: 1px;
+            font-size: 1.5rem;
+        }
+
+        p {
+            margin: 0;
+            line-height: 1.6;
+            font-size: 1.05rem;
+            color: var(--cream);
+            max-width: 80%;
+        }
+
+        #next-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: transparent;
+            color: var(--blue);
+
+            border: 1px solid var(--blue);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #next-btn:hover {
+            background: rgba(135, 194, 165, 0.1);
+            box-shadow: 0 0 10px rgba(135, 194, 165, 0.3);
+        }
+
+        #next-btn:active {
+            transform: translateY(2px);
+        }
+    </style>
+</head>
+<body>
+
+
+<div id="app-container">
+    <div id="canvas-wrapper">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+    
+    <div id="narrative-section">
+        <div class="scene-indicator">Chapter <span id="scene-num">1</span> / 3</div>
+        <h2 id="narrative-title">The Foundation: Micrograd</h2>
+        <p id="narrative-text">Karpathy's narrative begins at the atomic level. Micrograd is a tiny autograd engine that implements backpropagation over a computational graph of scalar values, revealing exactly how "gradients flow" backward through every addition and multiplication.</p>
+        <button id="next-btn">Next Chapter</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const nextBtn = document.getElementById('next-btn');
+    const titleEl = document.getElementById('narrative-title');
+    const textEl = document.getElementById('narrative-text');
+
+    const sceneLabel = document.getElementById('scene-num');
+
+    let width, height;
+    let scene = 0;
+    let time = 0;
+
+    const scenes = [
+        {
+            title: "The Foundation: Micrograd",
+            text: "It all starts with a simple computational graph. By treating every operation (addition, multiplication) as a node, we can manually trace the 'influence' of every input on the final output. This is backpropagation spelled out.",
+            draw: drawMicrograd
+        },
+        {
+            title: "Scaling Up: The Bigram Model",
+            text: "Moving from single scalars to probability matrices. Here, we predict the next character based on a lookup table of historical frequencies found in Shakespeare's corpus. It's the simplest form of language modeling.",
+            draw: drawBigram
+        },
+        {
+            title: "Modern Magic: Self-Attention",
+
+            text: "The heart of the Transformer. Every token looks at every other token to compute a 'contextual' representation. Through Queries, Keys, and Values, the model learns which parts of the sequence are relevant to the current word.",
+            draw: drawAttention
+        }
+    ];
+
+    function resize() {
+        // Set canvas to fill its wrapper
+        const wrapper = document.getElementById('canvas-wrapper');
+        width = wrapper.clientWidth;
+        height = wrapper.clientHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Scene 1: Micrograd (Computational Graph)
+    function drawMicrograd() {
+
+        const pulse = Math.sin(time * 2) * 5;
+        const nodes = [
+            { x: width * 0.2, y: height * 0.3, label: "a", val: 2.0 },
+            { x: width * 0.2, y: height * 0.7, label: "b", val: -3.0 },
+            { x: width * 0.5, y: height * 0.5, label: "*", op: true },
+            { x: width * 0.8, y: height * 0.5, label: "Loss", val: -6.0 }
+        ];
+        
+        // Connections
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(nodes[0].x, nodes[0].y); ctx.lineTo(nodes[2].x, nodes[2].y);
+        ctx.moveTo(nodes[1].x, nodes[1].y); ctx.lineTo(nodes[2].x, nodes[2].y);
+        ctx.moveTo(nodes[2].x, nodes[2].y); ctx.lineTo(nodes[3].x, nodes[3].y);
+        ctx.stroke();
+
+        // Animation of gradient flow (Backwards)
+        const flow = (time * 120) % width;
+
+        ctx.fillStyle = '#87c2a5';
+        ctx.beginPath();
+        ctx.arc(nodes[3].x - flow % 600, nodes[3].y, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        nodes.forEach(n => {
+            ctx.fillStyle = '#1c1c1c';
+            ctx.strokeStyle = n.op ? '#87c2a5' : '#ece6ff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, 40 + (n.op ? pulse : 0), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffea';
+            ctx.font = '20px serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(n.label, n.x, n.y + 7);
+            
+
+            ctx.font = '14px serif';
+            ctx.fillStyle = '#888';
+            if (n.val !== undefined) ctx.fillText(`val: ${n.val}`, n.x, n.y + 65);
+        });
+    }
+
+    // Scene 2: Bigram Model (Matrix Heatmap)
+    function drawBigram() {
+        const gridSize = 10;
+        const cellSize = 30;
+        const startX = width / 2 - (gridSize * cellSize) / 2;
+        const startY = height / 2 - (gridSize * cellSize) / 2;
+
+        ctx.strokeStyle = '#333';
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                const opacity = (Math.sin(time + i * 0.5 + j * 0.3) + 1) / 2 * 0.5;
+                ctx.fillStyle = `rgba(135, 194, 165, ${opacity})`;
+                ctx.fillRect(startX + j * cellSize, startY + i * cellSize, cellSize - 2, cellSize - 2);
+
+            }
+        }
+
+        const activeRow = Math.floor(time) % gridSize;
+        const activeCol = Math.floor(time * 1.5) % gridSize;
+        
+        ctx.strokeStyle = '#ece6ff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(startX + activeCol * cellSize - 2, startY + activeRow * cellSize - 2, cellSize + 2, cellSize + 2);
+        
+        ctx.fillStyle = '#ffffea';
+        ctx.textAlign = 'center';
+        ctx.font = '18px serif';
+        ctx.fillText("Character Transition Probabilities", width/2, startY - 30);
+        
+        ctx.font = '12px sans-serif';
+        ctx.fillStyle = '#666';
+        const chars = ['a','b','c','d','e','f','g','h','i','j'];
+        chars.forEach((char, idx) => {
+
+            ctx.fillText(char, startX - 20, startY + idx * cellSize + 18);
+            ctx.fillText(char, startX + idx * cellSize + 15, startY + (gridSize * cellSize) + 20);
+        });
+    }
+
+    // Scene 3: Attention (Tokens & Weights)
+    function drawAttention() {
+        const tokens = ["The", "AI", "builds", "itself", "."];
+        const spacing = Math.min(width / 6, 150);
+        const startX = (width - (tokens.length - 1) * spacing) / 2;
+        const y = height * 0.6;
+
+        const focalIdx = 2; // "builds" is focusing
+        
+        tokens.forEach((t, i) => {
+            const tx = startX + i * spacing;
+            
+            if (i !== focalIdx) {
+                const weight = (Math.sin(time + i) + 1) / 2;
+
+                ctx.strokeStyle = `rgba(135, 194, 165, ${weight * 0.7})`;
+                ctx.lineWidth = weight * 4;
+                ctx.beginPath();
+                ctx.moveTo(startX + focalIdx * spacing, y - 20);
+                ctx.quadraticCurveTo((tx + startX + focalIdx * spacing)/2, y - 150, tx, y - 20);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = i === focalIdx ? '#87c2a5' : '#1c1c1c';
+            ctx.strokeStyle = '#ece6ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(tx - 40, y - 20, 80, 40, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = i === focalIdx ? '#1c1c1c' : '#ffffea';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+
+            ctx.fillText(t, tx, y + 6);
+        });
+        
+        ctx.fillStyle = '#888';
+        ctx.font = '16px italic serif';
+        ctx.fillText("Dynamic Weighting (Attention)", width/2, y + 80);
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        time += 0.016;
+        scenes[scene].draw();
+        requestAnimationFrame(animate);
+    }
+
+    nextBtn.addEventListener('click', () => {
+        scene = (scene + 1) % scenes.length;
+        
+        titleEl.textContent = scenes[scene].title;
+
+        textEl.textContent = scenes[scene].text;
+        sceneLabel.textContent = scene + 1;
+        time = 0;
+    });
+
+    window.onload = animate;
+</script>
+</body>
+</html>
+
+
