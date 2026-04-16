@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markov Chain Animation</title>
+    <style>
+        :root {
+            --bg-color: #1c1c1c;
+            --text-color: #e0e0e0;
+            --primary-blue: #68b2f8;
+            --primary-yellow: #f8c268;
+            --accent-green: #95d5b2;
+            --accent-red: #ff8b94;
+            --ui-panel-bg: rgba(40, 40, 40, 0.9);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+        }
+
+        #app-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* Educational Overlay */
+        #educational-overlay {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 800px;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0px 2px 10px rgba(0,0,0,0.5);
+        }
+
+        #educational-overlay h1 {
+            color: var(--primary-blue);
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        #educational-overlay p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: var(--text-color);
+            opacity: 0.9;
+        }
+
+        /* UI Control Panel */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            background: var(--ui-panel-bg);
+            padding: 15px 25px;
+            border-radius: 50px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .btn {
+            background: none;
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            padding: 8px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            background: var(--text-color);
+            color: var(--bg-color);
+        }
+
+        .btn-primary {
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-blue);
+            color: var(--bg-color);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type=range] {
+            width: 100px;
+            accent-color: var(--primary-blue);
+        }
+
+        label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        #matrix-display {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--ui-panel-bg);
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', Courier, monospace;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: none;
+        }
+
+        .matrix-row {
+            display: flex;
+            justify-content: space-around;
+            gap: 15px;
+            margin: 5px 0;
+        }
+
+        .matrix-val {
+            width: 40px;
+            text-align: center;
+            color: var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div id="educational-overlay">
+        <h1 id="step-title">Markov Chains</h1>
+        <p id="step-desc">A Markov chain is a mathematical system that experiences transitions from one state to another according to certain probabilistic rules.</p>
+    </div>
+
+    <div id="matrix-display">
+        <div style="margin-bottom: 10px; color: var(--primary-yellow); text-align: center;">Transition Matrix (P)</div>
+        <div id="matrix-content"></div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div id="controls">
+        <div class="control-group">
+            <button class="btn" id="btn-back">Back</button>
+            <button class="btn" id="btn-next">Next</button>
+        </div>
+        
+        <div style="width: 1px; height: 30px; background: rgba(255,255,255,0.2);"></div>
+
+        <div class="control-group">
+            <button class="btn btn-primary" id="btn-play">Pause</button>
+        </div>
+
+        <div class="control-group">
+            <label>Speed</label>
+            <input type="range" id="speed-slider" min="0.5" max="3" step="0.1" value="1">
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const stepTitle = document.getElementById('step-title');
+    const stepDesc = document.getElementById('step-desc');
+    const matrixDisplay = document.getElementById('matrix-display');
+    const matrixContent = document.getElementById('matrix-content');
+    const btnPlay = document.getElementById('btn-play');
+    const speedSlider = document.getElementById('speed-slider');
+
+    let width, height;
+    let animationId;
+    let isPlaying = true;
+    let currentStep = 0;
+    let time = 0;
+    let speedMult = 1;
+
+    // --- Markov Chain Config ---
+    const nodes = [
+        { id: 0, name: 'A', x: 0, y: 0, color: '#68b2f8' },
+        { id: 1, name: 'B', x: 0, y: 0, color: '#f8c268' },
+        { id: 2, name: 'C', x: 0, y: 0, color: '#95d5b2' }
+    ];
+
+    const transitionMatrix = [
+        [0.7, 0.2, 0.1], // From A to A, B, C
+        [0.3, 0.4, 0.3], // From B to A, B, C
+        [0.2, 0.3, 0.5]  // From C to A, B, C
+    ];
+
+    let walker = {
+        currentState: 0,
+        targetState: 0,
+        progress: 1, // 0 to 1
+        pos: { x: 0, y: 0 },
+        trail: []
+    };
+
+    const steps = [
+        {
+            title: "The State Space",
+            desc: "Imagine a system that can exist in discrete states. Here we have states A, B, and C. The defining feature of a Markov Chain is that the next state depends <b>only</b> on the current state, not the history.",
+            showMatrix: false
+        },
+        {
+            title: "Transitions",
+            desc: "Nodes are connected by weighted edges. These weights represent the probability of moving from one state to another. Note how the outward probabilities for any single node always sum to 1.0.",
+            showMatrix: false
+        },
+        {
+            title: "The Transition Matrix",
+            desc: "Mathematically, we represent these probabilities in a square matrix <b>P</b>. Row <i>i</i> represents the current state, and Column <i>j</i> represents the probability of jumping to the next state.",
+            showMatrix: true
+        },
+        {
+            title: "Steady State",
+            desc: "If we let the walker run for a long time, the proportion of time spent in each state converges to a 'Steady State' distribution. Speed up the animation to see the distribution stabilize!",
+            showMatrix: true
+        }
+    ];
+
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        
+        // Position nodes in a triangle
+        updateNodePositions();
+        
+        // Init walker position
+        walker.pos.x = nodes[0].x;
+        walker.pos.y = nodes[0].y;
+
+        render();
+    }
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * window.devicePixelRatio;
+        canvas.height = height * window.devicePixelRatio;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        updateNodePositions();
+    }
+
+    function updateNodePositions() {
+        const centerX = width / 2;
+        const centerY = height / 2 + 30;
+        const radius = Math.min(width, height) * 0.25;
+
+        nodes.forEach((node, i) => {
+            const angle = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+            node.x = centerX + Math.cos(angle) * radius;
+            node.y = centerY + Math.sin(angle) * radius;
+        });
+    }
+
+    function updateWalker() {
+        if (!isPlaying) return;
+
+        speedMult = parseFloat(speedSlider.value);
+        walker.progress += 0.02 * speedMult;
+
+        if (walker.progress >= 1) {
+            walker.currentState = walker.targetState;
+            
+            // Choose next state based on probabilities
+            const probs = transitionMatrix[walker.currentState];
+            const rand = Math.random();
+            let sum = 0;
+            for (let i = 0; i < probs.length; i++) {
+                sum += probs[i];
+                if (rand < sum) {
+                    walker.targetState = i;
+                    break;
+                }
+            }
+            walker.progress = 0;
+        }
+
+        // Interpolate position
+        const startNode = nodes[walker.currentState];
+        const endNode = nodes[walker.targetState];
+        
+        // Add slight curve to walker path
+        const midX = (startNode.x + endNode.x) / 2;
+        const midY = (startNode.y + endNode.y) / 2;
+        const dist = Math.hypot(endNode.x - startNode.x, endNode.y - startNode.y);
+        
+        // Quadratic Bezier for walker path if moving to different node
+        if (walker.currentState !== walker.targetState) {
+            const normalX = -(endNode.y - startNode.y) / dist;
+            const normalY = (endNode.x - startNode.x) / dist;
+            const offset = 40;
+            const cpX = midX + normalX * offset;
+            const cpY = midY + normalY * offset;
+
+            const t = walker.progress;
+            walker.pos.x = (1 - t) * (1 - t) * startNode.x + 2 * (1 - t) * t * cpX + t * t * endNode.x;
+            walker.pos.y = (1 - t) * (1 - t) * startNode.y + 2 * (1 - t) * t * cpY + t * t * endNode.y;
+        } else {
+            // Self-loop animation (circle path)
+            const angle = Math.atan2(startNode.y - (height/2 + 30), startNode.x - (width/2));
+            const loopRadius = 30;
+            const t = walker.progress * Math.PI * 2;
+            walker.pos.x = startNode.x + Math.cos(angle + t) * loopRadius - Math.cos(angle) * loopRadius;
+            walker.pos.y = startNode.y + Math.sin(angle + t) * loopRadius - Math.sin(angle) * loopRadius;
+        }
+
+        // Manage trail
+        walker.trail.push({ x: walker.pos.x, y: walker.pos.y, alpha: 1 });
+        if (walker.trail.length > 20) walker.trail.shift();
+        walker.trail.forEach(t => t.alpha -= 0.05);
+    }
+
+    function drawArrow(fromX, fromY, toX, toY, label, isSelf) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+
+        if (isSelf) {
+            const angle = Math.atan2(fromY - (height/2 + 30), fromX - (width/2));
+            const cp1X = fromX + Math.cos(angle - 0.5) * 80;
+            const cp1Y = fromY + Math.sin(angle - 0.5) * 80;
+            const cp2X = fromX + Math.cos(angle + 0.5) * 80;
+            const cp2Y = fromY + Math.sin(angle + 0.5) * 80;
+            ctx.moveTo(fromX, fromY);
+            ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, fromX, fromY);
+            ctx.stroke();
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.fillText(label, cp1X - 10, cp1Y);
+        } else {
+            const dist = Math.hypot(toX - fromX, toY - fromY);
+            const normalX = -(toY - fromY) / dist;
+            const normalY = (toX - fromX) / dist;
+            const offset = 30;
+            const cpX = (fromX + toX) / 2 + normalX * offset;
+            const cpY = (fromY + toY) / 2 + normalY * offset;
+
+            ctx.moveTo(fromX, fromY);
+            ctx.quadraticCurveTo(cpX, cpY, toX, toY);
+            ctx.stroke();
+
+            // Arrow head
+            const t = 0.9;
+            const arrowX = (1 - t) * (1 - t) * fromX + 2 * (1 - t) * t * cpX + t * t * toX;
+            const arrowY = (1 - t) * (1 - t) * fromY + 2 * (1 - t) * t * cpY + t * t * toY;
+            const angle = Math.atan2(toY - cpY, toX - cpX);
+            
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(arrowX - 10 * Math.cos(angle - 0.5), arrowY - 10 * Math.sin(angle - 0.5));
+            ctx.lineTo(arrowX - 10 * Math.cos(angle + 0.5), arrowY - 10 * Math.sin(angle + 0.5));
+            ctx.closePath();
+            ctx.fill();
+
+            // Probability Label
+            if (currentStep >= 1) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.font = '14px Arial';
+                ctx.fillText(label, cpX, cpY);
+            }
+        }
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, width, height);
+        time += 0.01;
+
+        // Draw Connections
+        nodes.forEach((n1, i) => {
+            nodes.forEach((n2, j) => {
+                const prob = transitionMatrix[i][j];
+                if (prob > 0 && currentStep >= 1) {
+                    drawArrow(n1.x, n1.y, n2.x, n2.y, prob.toFixed(1), i === j);
+                }
+            });
+        });
+
+        // Draw Nodes
+        nodes.forEach(node => {
+            // Glow effect
+            const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, 50);
+            gradient.addColorStop(0, node.color + '44');
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Main Circle
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, 30, 0, Math.PI * 2);
+            ctx.strokeStyle = node.color;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = varColor('--bg-color');
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = node.color;
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(node.name, node.x, node.y);
+        });
+
+        // Draw Walker
+        updateWalker();
+        
+        // Trail
+        walker.trail.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(104, 178, 248, ${p.alpha})`;
+            ctx.fill();
+        });
+
+        ctx.beginPath();
+        ctx.arc(walker.pos.x, walker.pos.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#fff';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        animationId = requestAnimationFrame(render);
+    }
+
+    function varColor(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function updateStep() {
+        const step = steps[currentStep];
+        stepTitle.innerText = step.title;
+        stepDesc.innerHTML = step.desc;
+
+        if (step.showMatrix) {
+            matrixDisplay.style.display = 'block';
+            renderMatrix();
+        } else {
+            matrixDisplay.style.display = 'none';
+        }
+
+        // Back button state
+        document.getElementById('btn-back').style.opacity = currentStep === 0 ? '0.3' : '1';
+        document.getElementById('btn-next').innerText = currentStep === steps.length - 1 ? 'Restart' : 'Next';
+    }
+
+    function renderMatrix() {
+        let html = '';
+        transitionMatrix.forEach(row => {
+            html += '<div class="matrix-row">';
+            row.forEach(val => {
+                html += `<div class="matrix-val">${val.toFixed(1)}</div>`;
+            });
+            html += '</div>';
+        });
+        matrixContent.innerHTML = html;
+    }
+
+    // --- UI Events ---
+    document.getElementById('btn-next').addEventListener('click', () => {
+        if (currentStep < steps.length - 1) {
+            currentStep++;
+        } else {
+            currentStep = 0;
+        }
+        updateStep();
+    });
+
+    document.getElementById('btn-back').addEventListener('click', () => {
+        if (currentStep > 0) {
+            currentStep--;
+            updateStep();
+        }
+    });
+
+    btnPlay.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        btnPlay.innerText = isPlaying ? 'Pause' : 'Play';
+    });
+
+    // Start
+    init();
+    updateStep();
+
+</script>
+</body>
+</html>
