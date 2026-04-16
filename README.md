@@ -34,3 +34,4 @@ The code must be a single, production-ready HTML file. Use Tailwind CDN for styl
 ### [Hodgkin-Huxley Model](https://share.google/aimode/AVdF882n7oDu8d59r)
 ### [Emile Durkheim](https://share.google/aimode/zWsXrZehoneSB4EnY)
 ### [Emile Durkheim v2](https://share.google/aimode/e822QmQSu7o6IUZ9p)
+### [Karpathy vs Marcus v2](https://share.google/aimode/heM27iEYUzDj96d98)
