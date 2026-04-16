@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Lorenz Attractor Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0d0d0d;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0e0e0;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            max-width: 350px;
+            transition: opacity 0.5s ease;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 5px;
+            color: #64b5f6;
+        }
+        p {
+            font-size: 14px;
+            line-height: 1.5;
+            opacity: 0.9;
+        }
+        .math {
+            font-style: italic;
+            color: #ffb74d;
+            margin: 10px 0;
+        }
+        .btn-container {
+            position: absolute;
+            bottom: 40px;
+            left: 20px;
+            pointer-events: auto;
+        }
+        button {
+            background: rgba(100, 181, 246, 0.1);
+            border: 1px solid #64b5f6;
+            color: #64b5f6;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: rgba(100, 181, 246, 0.3);
+            box-shadow: 0 0 15px rgba(100, 181, 246, 0.2);
+        }
+        #step2-content {
+            display: none;
+        }
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 12px;
+            opacity: 0.5;
+        }
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 12px;
+            color: #81c784;
+        }
+        .divergence-alert {
+            color: #f06292;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="step1-content">
+            <h1>The Lorenz Attractor</h1>
+            <p>Two paths starting with a difference of only 0.001 units. Watch how <span style="color: #64b5f6">Blue</span> and <span style="color: #f06292">Pink</span> eventually diverge—the signature of chaos.</p>
+            <p class="math">
+                dx/dt = σ(y - x)<br>
+                dy/dt = x(ρ - z) - y<br>
+                dz/dt = xy - βz
+            </p>
+        </div>
+        <div id="step2-content">
+            <h1>The Butterfly Effect</h1>
+            <p>This is "Sensitive Dependence on Initial Conditions." Even if we knew the starting position to a thousand decimal places, the tiny unknown error would eventually grow to dominate the entire system.</p>
+            <p>Current Separation: <span id="dist-val" class="divergence-alert">0.001</span> units.</p>
+        </div>
+    </div>
+
+    <div id="stats">
+        Time: <span id="time-val">0.00</span>
+    </div>
+
+    <div class="btn-container">
+        <button id="next-btn" onclick="nextStep()">Next: The Butterfly Effect</button>
+    </div>
+
+    <div class="controls-hint">Drag to Rotate | Scroll to Zoom</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+        const sigma = 10;
+        const rho = 28;
+        const beta = 8/3;
+        const dt = 0.01;
+
+        let scene, camera, renderer, line1, line2;
+        let points1 = [], points2 = [];
+        let x1 = 0.1, y1 = 0, z1 = 0;
+        let x2 = 0.1, y2 = 0, z2 = 0.001; 
+        let time = 0;
+        let currentStep = 1;
+
+        const MAX_POINTS = 5000;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 80);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            const mat1 = new THREE.LineBasicMaterial({ color: 0x64b5f6, opacity: 0.8, transparent: true });
+            const geo1 = new THREE.BufferGeometry();
+            line1 = new THREE.Line(geo1, mat1);
+            scene.add(line1);
+
+            const mat2 = new THREE.LineBasicMaterial({ color: 0xf06292, opacity: 0.8, transparent: true });
+            const geo2 = new THREE.BufferGeometry();
+            line2 = new THREE.Line(geo2, mat2);
+            scene.add(line2);
+
+            const grid = new THREE.GridHelper(100, 10, 0x333333, 0x222222);
+            grid.rotation.x = Math.PI / 2;
+            grid.position.z = -10;
+            scene.add(grid);
+
+            window.addEventListener('resize', onWindowResize, false);
+            
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            document.addEventListener('mousedown', () => isDragging = true);
+            document.addEventListener('mouseup', () => isDragging = false);
+            document.addEventListener('mousemove', (e) => {
+                if(isDragging) {
+                    scene.rotation.y += (e.offsetX - previousMousePosition.x) * 0.01;
+                    scene.rotation.x += (e.offsetY - previousMousePosition.y) * 0.01;
+                }
+                previousMousePosition = { x: e.offsetX, y: e.offsetY };
+            });
+
+            document.addEventListener('wheel', (e) => {
+                camera.position.z = Math.max(10, Math.min(camera.position.z + e.deltaY * 0.05, 200));
+            });
+
+            animate();
+        }
+
+        function nextStep() {
+            if (currentStep === 1) {
+                document.getElementById('step1-content').style.display = 'none';
+                document.getElementById('step2-content').style.display = 'block';
+                document.getElementById('next-btn').innerText = 'Reset Simulation';
+                currentStep = 2;
+            } else {
+                resetSimulation();
+            }
+        }
+
+        function resetSimulation() {
+            x1 = 0.1; y1 = 0; z1 = 0;
+            x2 = 0.1; y2 = 0; z2 = 0.001;
+            points1 = [];
+            points2 = [];
+            time = 0;
+            currentStep = 1;
+            document.getElementById('step1-content').style.display = 'block';
+            document.getElementById('step2-content').style.display = 'none';
+            document.getElementById('next-btn').innerText = 'Next: The Butterfly Effect';
+        }
+
+        function updateLorenz() {
+            let dx1 = (sigma * (y1 - x1)) * dt;
+            let dy1 = (x1 * (rho - z1) - y1) * dt;
+            let dz1 = (x1 * y1 - beta * z1) * dt;
+            x1 += dx1; y1 += dy1; z1 += dz1;
+
+            let dx2 = (sigma * (y2 - x2)) * dt;
+            let dy2 = (x2 * (rho - z2) - y2) * dt;
+            let dz2 = (x2 * y2 - beta * z2) * dt;
+            x2 += dx2; y2 += dy2; z2 += dz2;
+
+            points1.push(new THREE.Vector3(x1, y1, z1 - 25));
+            points2.push(new THREE.Vector3(x2, y2, z2 - 25));
+
+            if (points1.length > MAX_POINTS) points1.shift();
+            if (points2.length > MAX_POINTS) points2.shift();
+
+            line1.geometry.setFromPoints(points1);
+            line2.geometry.setFromPoints(points2);
+            
+            time += dt;
+            document.getElementById('time-val').innerText = time.toFixed(2);
+
+            if (currentStep === 2) {
+                const dist = Math.sqrt((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2);
+                document.getElementById('dist-val').innerText = dist.toFixed(4);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            for(let i = 0; i < 2; i++) updateLorenz();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
