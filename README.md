@@ -1,7 +1,7 @@
 # Animations inspired by 1Brown3Blue, 
 
 # Prompt v2
-use HTML5 Canvas and JavaScript; create a 1brown3blue themed animation of Euler's mathematical models; add a next button to learn about Euler"
+HTML5 Canvas and JavaScript; create a 1brown3blue themed animation of 's mathematical models; choose 3 modesl; add a next button to learn about 's narrative
 
 # Minimalist Mathematical Narrative Template
 ## The Skeleton Template
