@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3b1b Maze Speedrun - Difficulty Levels</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --grid-color: #333333;
+            --blue: #58C4DD;
+            --green: #83C167;
+            --red: #CF5044;
+            --yellow: #FFFF00;
+            --text-color: #ccd6f6;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Moved UI Overlay above the game container */
+        #ui-overlay {
+            width: 90%;
+            max-width: 800px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-color);
+            font-variant-numeric: tabular-nums;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: var(--bg-color);
+            cursor: none;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 4px;
+            border-left: 4px solid var(--blue);
+            backdrop-filter: blur(5px);
+        }
+
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 26, 0.95);
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid var(--green);
+            text-align: center;
+            color: var(--text-color);
+            z-index: 10;
+        }
+
+        h1 { color: var(--blue); margin-top: 0; }
+        h2 { color: var(--text-color); font-size: 1rem; margin-bottom: 20px; }
+        .highlight { color: var(--yellow); font-weight: bold; }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: transparent;
+            border: 2px solid var(--blue);
+            color: var(--blue);
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: var(--blue);
+            color: var(--bg-color);
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            color: rgba(204, 214, 246, 0.5);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- UI Overlay is now outside the game container to prevent covering the maze -->
+    <div id="ui-overlay">
+        <div class="stat-box">TIME: <span id="timer">0.00</span>s</div>
+        <div class="stat-box">BEST (<span id="level-label">?</span>): <span id="best-time">--</span></div>
+    </div>
+
+    <div id="game-container">
+        <div id="message-box">
+            <h1 id="msg-title">SELECT DIFFICULTY</h1>
+            <div id="score-display" style="display:none; margin-bottom: 20px;">
+                <p>Your Time: <span id="final-time" class="highlight">0.00s</span></p>
+                <p id="new-record" style="display:none; color: var(--yellow);">New Personal Best!</p>
+            </div>
+            <h2>Choose your speedrun variation:</h2>
+            <div class="btn-group">
+                <button onclick="startGame(15, 'EASY')">EASY (15x15)</button>
+                <button onclick="startGame(31, 'MEDIUM')">MEDIUM (31x31)</button>
+                <button onclick="startGame(45, 'HARD')">HARD (45x45)</button>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="controls-hint">Hold WASD or Arrow Keys to move. Reach the green portal.</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const timerEl = document.getElementById('timer');
+        const bestEl = document.getElementById('best-time');
+        const levelLabelEl = document.getElementById('level-label');
+        const messageBox = document.getElementById('message-box');
+        const msgTitle = document.getElementById('msg-title');
+        const scoreDisplay = document.getElementById('score-display');
+        const finalTimeEl = document.getElementById('final-time');
+        const newRecordEl = document.getElementById('new-record');
+
+        // Game Configuration
+        const CONFIG = {
+            gridSize: 21,
+            cellSize: 0,
+            moveDelay: 60,
+            colors: {
+                bg: '#1a1a1a',
+                grid: '#252525',
+                wall: '#58C4DD',
+                player: '#FFFF00',
+                goal: '#83C167'
+            }
+        };
+
+        let maze = [];
+        let player = { x: 1, y: 1 };
+        let goal = { x: 0, y: 0 };
+        let startTime = 0;
+        let isRunning = false;
+        let lastMoveTime = 0;
+        let keysPressed = {};
+        let currentLevelName = '';
+
+        function initCanvas() {
+            const size = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.7);
+            canvas.width = size;
+            canvas.height = size;
+            CONFIG.cellSize = size / CONFIG.gridSize;
+        }
+
+        function generateMaze(size) {
+            let grid = Array(size).fill().map(() => Array(size).fill(1));
+            
+            function walk(x, y) {
+                grid[y][x] = 0;
+                const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
+                
+                for (let [dx, dy] of dirs) {
+                    let nx = x + dx, ny = y + dy;
+                    if (nx > 0 && nx < size && ny > 0 && ny < size && grid[ny][nx] === 1) {
+                        grid[y + dy / 2][x + dx / 2] = 0;
+                        walk(nx, ny);
+                    }
+                }
+            }
+            
+            walk(1, 1);
+            grid[size - 2][size - 2] = 0;
+            goal = { x: size - 2, y: size - 2 };
+            return grid;
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = CONFIG.colors.grid;
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= CONFIG.gridSize; i++) {
+                let pos = i * CONFIG.cellSize;
+                ctx.beginPath();
+                ctx.moveTo(pos, 0); ctx.lineTo(pos, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, pos); ctx.lineTo(canvas.width, pos);
+                ctx.stroke();
+            }
+        }
+
+        function drawMaze() {
+            ctx.fillStyle = CONFIG.colors.wall;
+            ctx.shadowBlur = CONFIG.gridSize > 35 ? 0 : 10;
+            ctx.shadowColor = CONFIG.colors.wall;
+
+            for (let y = 0; y < CONFIG.gridSize; y++) {
+                for (let x = 0; x < CONFIG.gridSize; x++) {
+                    if (maze[y][x] === 1) {
+                        ctx.fillRect(
+                            x * CONFIG.cellSize + 1, 
+                            y * CONFIG.cellSize + 1, 
+                            CONFIG.cellSize - 2, 
+                            CONFIG.cellSize - 2
+                        );
+                    }
+                }
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function drawEntities() {
+            ctx.fillStyle = CONFIG.colors.goal;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = CONFIG.colors.goal;
+            ctx.beginPath();
+            ctx.arc(
+                (goal.x + 0.5) * CONFIG.cellSize, 
+                (goal.y + 0.5) * CONFIG.cellSize, 
+                CONFIG.cellSize * 0.3, 0, Math.PI * 2
+            );
+            ctx.fill();
+
+            ctx.fillStyle = CONFIG.colors.player;
+            ctx.shadowColor = CONFIG.colors.player;
+            ctx.beginPath();
+            ctx.arc(
+                (player.x + 0.5) * CONFIG.cellSize, 
+                (player.y + 0.5) * CONFIG.cellSize, 
+                CONFIG.cellSize * 0.35, 0, Math.PI * 2
+            );
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        function handleContinuousInput() {
+            const now = Date.now();
+            if (now - lastMoveTime < CONFIG.moveDelay) return;
+
+            let moved = false;
+            if (keysPressed['w'] || keysPressed['arrowup']) { movePlayer(0, -1); moved = true; }
+            else if (keysPressed['s'] || keysPressed['arrowdown']) { movePlayer(0, 1); moved = true; }
+            else if (keysPressed['a'] || keysPressed['arrowleft']) { movePlayer(-1, 0); moved = true; }
+            else if (keysPressed['d'] || keysPressed['arrowright']) { movePlayer(1, 0); moved = true; }
+
+            if (moved) lastMoveTime = now;
+        }
+
+        function update() {
+            if (!isRunning) return;
+            
+            handleContinuousInput();
+
+            const currentTime = (Date.now() - startTime) / 1000;
+            timerEl.innerText = currentTime.toFixed(2);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            drawMaze();
+            drawEntities();
+
+            if (player.x === goal.x && player.y === goal.y) {
+                endGame(currentTime);
+            } else {
+                requestAnimationFrame(update);
+            }
+        }
+
+        function movePlayer(dx, dy) {
+            if (!isRunning) return;
+            let nx = player.x + dx;
+            let ny = player.y + dy;
+
+            if (nx >= 0 && nx < CONFIG.gridSize && ny >= 0 && ny < CONFIG.gridSize) {
+                if (maze[ny][nx] === 0) {
+                    player.x = nx;
+                    player.y = ny;
+                }
+            }
+        }
+
+        function endGame(time) {
+            isRunning = false;
+            finalTimeEl.innerText = time.toFixed(2) + 's';
+            
+            const storageKey = 'mazeBestTime_' + currentLevelName;
+            let bestTime = localStorage.getItem(storageKey) || Infinity;
+            
+            if (time < bestTime) {
+                bestTime = time;
+                localStorage.setItem(storageKey, bestTime);
+                bestEl.innerText = bestTime.toFixed(2) + 's';
+                newRecordEl.style.display = 'block';
+            } else {
+                newRecordEl.style.display = 'none';
+            }
+            
+            msgTitle.innerText = "MAZE COMPLETE!";
+            scoreDisplay.style.display = 'block';
+            messageBox.style.display = 'block';
+            keysPressed = {};
+        }
+
+        function startGame(size, name) {
+            CONFIG.gridSize = size;
+            currentLevelName = name;
+            levelLabelEl.innerText = name;
+            
+            const storageKey = 'mazeBestTime_' + name;
+            const bestTime = localStorage.getItem(storageKey);
+            bestEl.innerText = bestTime ? parseFloat(bestTime).toFixed(2) + 's' : '--';
+
+            initCanvas();
+            maze = generateMaze(CONFIG.gridSize);
+            player = { x: 1, y: 1 };
+            startTime = Date.now();
+            isRunning = true;
+            messageBox.style.display = 'none';
+            keysPressed = {};
+            update();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            keysPressed[e.key.toLowerCase()] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keysPressed[e.key.toLowerCase()] = false;
+        });
+
+        let touchStart = null;
+        canvas.addEventListener('touchstart', e => {
+            touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            e.preventDefault();
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', e => {
+            if (!touchStart) return;
+            let dx = e.touches[0].clientX - touchStart.x;
+            let dy = e.touches[0].clientY - touchStart.y;
+            
+            if (Math.abs(dx) > 15 || Math.abs(dy) > 15) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    movePlayer(dx > 0 ? 1 : -1, 0);
+                } else {
+                    movePlayer(dy > 0 ? 1 : -1, 0);
+                }
+                touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            e.preventDefault();
+        }, {passive: false});
+
+        window.addEventListener('resize', () => {
+            if (isRunning) initCanvas();
+        });
+    </script>
+</body>
+</html>
